@@ -26,10 +26,10 @@ Atlas.registry(
   ],
   [
     /* 機械學習基礎 */
-    { id: "kernel", area: "ml", sec: "§7",  en: "SVM & Kernel Trick", added: true, file: "concepts/svm.js" },
-    { id: "kmeans", area: "ml", sec: "§8",  en: "k-means Clustering", added: true, file: "concepts/kmeans.js" },
-    { id: "pca", area: "ml", sec: "§8",  en: "Principal Component Analysis", added: true, file: "concepts/pca.js" },
-    { id: "roc", area: "ml", sec: "§10", en: "ROC Curve & AUC", added: true, file: "concepts/roc.js" },
+    { id: "kernel", area: "ml", sec: "§7",  en: "SVM & Kernel Trick", added: true, file: "concepts/svm.js", i18n: true },
+    { id: "kmeans", area: "ml", sec: "§8",  en: "k-means Clustering", added: true, file: "concepts/kmeans.js", i18n: true },
+    { id: "pca", area: "ml", sec: "§8",  en: "Principal Component Analysis", added: true, file: "concepts/pca.js", i18n: true },
+    { id: "roc", area: "ml", sec: "§10", en: "ROC Curve & AUC", added: true, file: "concepts/roc.js", i18n: true },
 
     /* 神經網路怎麼學習 */
     { id: "gd", area: "learn", sec: "§16", en: "Gradient Descent & Learning Rate", file: "concepts/gradient-descent.js" },

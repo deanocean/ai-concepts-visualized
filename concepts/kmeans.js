@@ -2,7 +2,8 @@
    30 個點（三團，固定亂數產生後寫死），k = 2〜5。
    一步一步交替：①分組（每個點分到最近的中心）②移動中心（搬到組員的平均）；沒有點換組就收斂。
    初始中心：隨機挑 k 個資料點（可換一組）、故意放壞的位置、或在第 0 步直接拖動中心。
-   下方：每一步的 SSE（組內距離平方和），以及 k = 1〜6 收斂後的 SSE（エルボー法）。全部即時計算。 */
+   下方：每一步的 SSE（組內距離平方和），以及 k = 1〜6 收斂後的 SSE（手肘法）。全部即時計算。
+   文字在 locales/zh/kmeans.js、locales/ja/kmeans.js。 */
 (function () {
   const D = [[1.41, 2.13], [1.75, 3.34], [2.28, 2], [1.64, 1.94], [1.67, 2.54], [1.86, 3.2], [2.44, 1.46], [1.63, 3.12], [1.35, 2.58], [1.85, 1.71],
     [6.25, 1.47], [5.43, 2.83], [5.99, 3.77], [6.33, 3.47], [6.33, 0.65], [7.36, 2.17], [5.83, 1.64], [6.79, 1.99], [5.96, 2.5], [6.28, 2.19],
@@ -31,16 +32,14 @@
     return H;
   }
   const finalSSE = (C0) => { const H = history(C0); return H[H.length - 1].sse; };
-  // 每個 k 試 20 組隨機初始中心，取最好的（エルボー法用）
+  // 每個 k 試 20 組隨機初始中心，取最好的（手肘法用）
   const BEST = [1, 2, 3, 4, 5, 6].map((k) => Math.min(...Array.from({ length: 20 }, (_, s) => finalSSE(initIdx(k, s + 1).map((i) => D[i])))));
   const BAD3 = [[1.5, 2.0], [2.2, 3.0], [5.5, 4.5]];
 
   Atlas.define("kmeans", {
-    lead: `<p>手上只有資料、沒有正解標籤，想把相似的資料自動分成幾群（<span class="jp">クラスタリング</span>，分群，<span class="en">clustering</span>），例如依購買紀錄把顧客分群。<span class="jp">k-means 法</span>（<span class="en">k-means clustering</span>）先決定要分 k 群、隨便放 k 個中心，然後只重複兩件簡單的事，直到不再變化。</p>`,
-    closing: `k-means 法只做兩件事：每個點歸給最近的中心、每個中心搬到組員的平均位置；每一步都讓組內距離平方和變小，所以一定會停下來。但停下來的地方取決於初始中心（可能卡在比較差的結果），而且 k 要由人決定，可以用不同 k 的結果比較來輔助判斷。`,
-
     mount(bench, ctx) {
       const { h, s, fmt, ui } = Atlas;
+      const { t } = ctx;
       let k = 3, init = "rand", seed = 1, custom = null, H = [], step = 0, sel = 29;
 
       bench.append(h("style", { text: `
@@ -57,32 +56,32 @@
       bench.classList.add("km");
       const COL = ["var(--pos)", "var(--hot)", "var(--ok)", "var(--neg)", "var(--km5)"];
 
-      const kSl = ui.slider({ id: "km-k", label: "群數 k", min: 2, max: 5, step: 1, value: k, format: (v) => v + " 群", onInput: (v) => { k = v; if (init !== "rand") { init = "rand"; initSeg.set("rand"); } rebuild(); } });
-      const initSeg = ui.seg({ label: "初始中心", value: init, options: [{ value: "rand", label: "隨機挑 k 個點" }, { value: "bad", label: "故意放壞的位置（k = 3）" }],
+      const kSl = ui.slider({ id: "km-k", label: t("kLabel"), min: 2, max: 5, step: 1, value: k, format: (v) => t("kFmt", { k: v }), onInput: (v) => { k = v; if (init !== "rand") { init = "rand"; initSeg.set("rand"); } rebuild(); } });
+      const initSeg = ui.seg({ label: t("initLabel"), value: init, options: [{ value: "rand", label: t("initRand") }, { value: "bad", label: t("initBad") }],
         onChange: (v) => { init = v; if (v === "bad") { k = 3; kSl.set(3); } rebuild(); } });
-      const seedBtn = ui.btn("換一組隨機初始", () => { init = "rand"; initSeg.set("rand"); seed = (seed % 20) + 1; rebuild(); }, { sm: true });
+      const seedBtn = ui.btn(t("btnSeed"), () => { init = "rand"; initSeg.set("rand"); seed = (seed % 20) + 1; rebuild(); }, { sm: true });
       const player = ui.player(ctx, () => { if (step >= H.length - 1) return false; step++; draw(); return step < H.length - 1; }, 900);
-      const prevBtn = ui.btn("◀ 上一步", () => { player.pause(); if (step > 0) { step--; draw(); } });
-      const nextBtn = ui.btn("下一步 ▶", () => { player.pause(); if (step < H.length - 1) { step++; draw(); } }, { primary: true });
-      const endBtn = ui.btn("跑到收斂", () => { player.pause(); step = H.length - 1; draw(); });
-      const resetBtn = ui.btn("回到第 0 步", () => { player.pause(); step = 0; draw(); });
+      const prevBtn = ui.btn(t("btnPrev"), () => { player.pause(); if (step > 0) { step--; draw(); } });
+      const nextBtn = ui.btn(t("btnNext"), () => { player.pause(); if (step < H.length - 1) { step++; draw(); } }, { primary: true });
+      const endBtn = ui.btn(t("btnEnd"), () => { player.pause(); step = H.length - 1; draw(); });
+      const resetBtn = ui.btn(t("btnReset"), () => { player.pause(); step = 0; draw(); });
 
       const W = 440, Hh = 410, M = { l: 28, t: 10, r: 10, b: 26 }, U = 50, XW = 8, YH = 7.5;
       const X = (x) => M.l + x * U, Y = (y) => M.t + (YH - y) * U;
-      const main = s("svg", { viewBox: `0 0 ${W} ${Hh}`, role: "img", "aria-label": "資料點、各群中心與分組" });
-      const hist = s("svg", { viewBox: "0 0 360 200", role: "img", "aria-label": "每一步的組內距離平方和" });
-      const elbow = s("svg", { viewBox: "0 0 360 200", role: "img", "aria-label": "不同群數收斂後的組內距離平方和" });
+      const main = s("svg", { viewBox: `0 0 ${W} ${Hh}`, role: "img", "aria-label": t("mainAria") });
+      const hist = s("svg", { viewBox: "0 0 360 200", role: "img", "aria-label": t("histAria") });
+      const elbow = s("svg", { viewBox: "0 0 360 200", role: "img", "aria-label": t("elbowAria") });
       const status = h("div", { class: "status" }), calc = h("div", { class: "calc" }), note = h("p", { class: "note" });
       bench.append(
         h("div", { class: "bench__row" }, kSl.el, initSeg.el, seedBtn),
         status,
         h("div", { class: "scroll-x" }, h("div", { class: "km-figs" }, h("div", { class: "km-fig", style: { flexBasis: "420px", maxWidth: "540px" } },
-          h("div", { class: "km-cap" }, "◆＝中心（第 0 步可以拖動）；點一個資料點，看它的計算"), main))),
+          h("div", { class: "km-cap" }, t("mainCap")), main))),
         h("div", { class: "bench__row" }, prevBtn, nextBtn, player.el, endBtn, resetBtn),
         calc,
         h("div", { class: "scroll-x" }, h("div", { class: "km-figs" },
-          h("div", { class: "km-fig" }, h("div", { class: "km-cap" }, "每一步之後的 SSE（組內距離平方和；○ 分組後、● 移動中心後）"), hist),
-          h("div", { class: "km-fig" }, h("div", { class: "km-cap" }, "群數 k 與收斂後的 SSE（每個 k 試 20 組初始取最好）"), elbow))),
+          h("div", { class: "km-fig" }, h("div", { class: "km-cap" }, t("histCap")), hist),
+          h("div", { class: "km-fig" }, h("div", { class: "km-cap" }, t("elbowCap")), elbow))),
         note);
 
       function rebuild() {
@@ -94,26 +93,26 @@
       /* ---------- 拖動中心（只在第 0 步）、點選資料點 ---------- */
       let drag = null;
       const toSvg = (e) => { const p = main.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(main.getScreenCTM().inverse()); };
-      const clampC = (v) => [Math.max(0.1, Math.min(XW - 0.1, v[0])), Math.max(0.1, Math.min(YH - 0.1, v[1]))].map((t) => Math.round(t * 20) / 20);
+      const clampC = (v) => [Math.max(0.1, Math.min(XW - 0.1, v[0])), Math.max(0.1, Math.min(YH - 0.1, v[1]))].map((u) => Math.round(u * 20) / 20);
       function moveCenter(j, v) {
         custom = H[0].C.map((c) => [...c]); custom[j] = clampC(v);
         if (init !== "drag") { init = "drag"; initSeg.set(null); }
         H = history(custom); step = 0; draw();
       }
       main.addEventListener("pointerdown", (e) => {
-        const t = e.target;
-        if (t.dataset && t.dataset.c != null && step === 0) { player.pause(); drag = +t.dataset.c; try { main.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); }
-        else if (t.dataset && t.dataset.p != null) { sel = +t.dataset.p; draw(); }
+        const tg = e.target;
+        if (tg.dataset && tg.dataset.c != null && step === 0) { player.pause(); drag = +tg.dataset.c; try { main.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); }
+        else if (tg.dataset && tg.dataset.p != null) { sel = +tg.dataset.p; draw(); }
       });
       main.addEventListener("pointermove", (e) => { if (drag == null) return; const q = toSvg(e); moveCenter(drag, [(q.x - M.l) / U, YH - (q.y - M.t) / U]); });
       const end = () => { drag = null; };
       main.addEventListener("pointerup", end); main.addEventListener("pointercancel", end);
       main.addEventListener("keydown", (e) => {
-        const t = e.target; if (!t.dataset) return;
-        if (t.dataset.p != null && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); sel = +t.dataset.p; draw(); main.querySelector(`[data-p="${sel}"]`).focus(); return; }
-        if (t.dataset.c == null || step !== 0) return;
+        const tg = e.target; if (!tg.dataset) return;
+        if (tg.dataset.p != null && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); sel = +tg.dataset.p; draw(); main.querySelector(`[data-p="${sel}"]`).focus(); return; }
+        if (tg.dataset.c == null || step !== 0) return;
         const d = { ArrowLeft: [-0.1, 0], ArrowRight: [0.1, 0], ArrowUp: [0, 0.1], ArrowDown: [0, -0.1] }[e.key]; if (!d) return;
-        e.preventDefault(); const j = +t.dataset.c, c = H[0].C[j]; moveCenter(j, [c[0] + d[0], c[1] + d[1]]);
+        e.preventDefault(); const j = +tg.dataset.c, c = H[0].C[j]; moveCenter(j, [c[0] + d[0], c[1] + d[1]]);
         const el = main.querySelector(`[data-c="${j}"]`); el && el.focus();
       });
 
@@ -137,7 +136,7 @@
         D.forEach((p, i) => {
           const changed = st.phase === "assign" && step > 1 && st.changed[i];
           main.append(s("circle", { cx: X(p[0]), cy: Y(p[1]), r: changed ? 7 : 6, fill: lab ? COL[lab[i]] : "var(--faint)", stroke: changed ? "var(--ink)" : "var(--panel)", "stroke-width": changed ? 2.5 : 1.5,
-            class: "km-p", "data-p": i, tabindex: 0, role: "button", "aria-label": `資料點 (${p[0]}, ${p[1]})${lab ? `，第 ${lab[i] + 1} 群` : ""}${changed ? "，這一步換了組" : ""}` }));
+            class: "km-p", "data-p": i, tabindex: 0, role: "button", "aria-label": t("pointAria", { x: p[0], y: p[1] }) + (lab ? t("pointGroup", { g: lab[i] + 1 }) : "") + (changed ? t("pointChanged") : "") }));
         });
         // 移動中心：舊位置（空心）→ 新位置
         if (st.phase === "update") st.prevC.forEach((c, j) => {
@@ -150,32 +149,32 @@
           }
         });
         C.forEach((c, j) => {
-          main.append(diamond(c, j, step === 0 ? { class: "km-c", "data-c": j, tabindex: 0, role: "button", "aria-label": `第 ${j + 1} 個中心，可拖動` } : { "aria-label": `第 ${j + 1} 個中心` }));
+          main.append(diamond(c, j, step === 0 ? { class: "km-c", "data-c": j, tabindex: 0, role: "button", "aria-label": t("centerAriaDrag", { j: j + 1 }) } : { "aria-label": t("centerAria", { j: j + 1 }) }));
           main.append(s("text", { x: X(c[0]), y: Y(c[1]) + 4, "text-anchor": "middle", "font-size": 11, "font-weight": 700, fill: "var(--panel)", text: j + 1, style: "pointer-events:none" }));
         });
 
         /* --- 狀態 --- */
-        const set = (kd, t) => { status.className = "status status--" + kd; status.textContent = t; };
-        const best = BEST[k - 1];
-        const head = `第 ${step} 步：`;
-        if (st.phase === "init") set("info", head + (init === "bad" ? "初始中心故意擠在左下那一團（1、2 號）" : init === "drag" ? "用你拖動的位置當初始中心" : `隨機挑了 ${k} 個資料點當初始中心`) + "。按「下一步」開始");
-        else if (st.phase === "assign") set("info", head + (step === 1 ? "分組：每個點歸給最近的中心" : `分組：有 ${st.nch} 個點換了組（粗黑框）`));
-        else if (st.phase === "update") set("info", head + `移動中心：每個中心搬到組員的平均位置，最多移動 ${fmt(st.move, 2)}`);
-        else if (st.sse > best * 1.02) set("warn", head + `收斂了（沒有點換組），但 SSE = ${fmt(st.sse, 2)}，比 k = ${k} 時能達到的 ${fmt(best, 2)} 大 ${fmt(st.sse / best, 1)} 倍：卡在比較差的結果`);
-        else set("ok", head + `收斂：沒有點換組，中心不再移動。SSE = ${fmt(st.sse, 2)}`);
+        const set = (kd, msg) => { status.className = "status status--" + kd; status.textContent = msg; };
+        const best = BEST[k - 1], n = step;
+        if (st.phase === "init") set("info", init === "bad" ? t("statusInitBad", { n }) : init === "drag" ? t("statusInitDrag", { n }) : t("statusInitRand", { n, k }));
+        else if (st.phase === "assign") set("info", step === 1 ? t("statusAssign1", { n }) : t("statusAssign", { n, nch: st.nch }));
+        else if (st.phase === "update") set("info", t("statusUpdate", { n, move: fmt(st.move, 2) }));
+        else if (st.sse > best * 1.02) set("warn", t("statusStuck", { n, sse: fmt(st.sse, 2), k, best: fmt(best, 2), ratio: fmt(st.sse / best, 1) }));
+        else set("ok", t("statusDone", { n, sse: fmt(st.sse, 2) }));
 
         /* --- 算式 --- */
         const row = (kk, b) => `<span class="calc-row"><span class="k">${kk}</span> ${b}</span>`;
         const pp = `(${fmt(sp[0], 2)}, ${fmt(sp[1], 2)})`;
-        if (st.phase === "init") calc.innerHTML = row("下一步", `選中的點 ${pp}：算出它到每個中心的距離，歸給最近的那一個`);
+        if (st.phase === "init") calc.innerHTML = row(t("calcNextK"), t("calcNext", { p: pp }));
         else if (st.phase === "update") {
           const j = lab[sel], mem = D.filter((_, i) => lab[i] === j), sx = mem.reduce((a, p) => a + p[0], 0), sy = mem.reduce((a, p) => a + p[1], 0);
-          calc.innerHTML = row(`中心 ${j + 1} 的新位置`, `選中的點所在的第 ${j + 1} 群有 ${mem.length} 個點，平均 = (${fmt(sx, 2)} ÷ ${mem.length}, ${fmt(sy, 2)} ÷ ${mem.length}) = <span class="hl">(${fmt(C[j][0], 2)}, ${fmt(C[j][1], 2)})</span>`) +
-            row("SSE", `每個點到自己中心的距離² 加總 = ${fmt(st.sse, 2)}（移動前 ${fmt(H[step - 1].sse, 2)}）`);
+          calc.innerHTML = row(t("calcCenterK", { j: j + 1 }), t("calcCenter", { j: j + 1, n: mem.length, sx: fmt(sx, 2), sy: fmt(sy, 2), cx: fmt(C[j][0], 2), cy: fmt(C[j][1], 2) })) +
+            row(t("calcSseK"), t("calcSseUpdate", { sse: fmt(st.sse, 2), prev: fmt(H[step - 1].sse, 2) }));
         } else {
           const ds = C.map((c) => d2(sp, c)), b = lab[sel];
-          calc.innerHTML = row(`點 ${pp} 到各中心的距離²`, ds.map((v, j) => (j === b ? `<span class="hl">中心 ${j + 1}：${fmt(v, 2)}</span>` : `中心 ${j + 1}：${fmt(v, 2)}`)).join("　") + `　→ 歸給中心 ${b + 1}`) +
-            row("SSE", `每個點到自己中心的距離² 加總 = ${fmt(st.sse, 2)}` + (step > 1 ? `（分組前 ${fmt(H[step - 1].sse, 2)}）` : ""));
+          const item = (v, j) => t("calcDistItem", { j: j + 1, v: fmt(v, 2) });
+          calc.innerHTML = row(t("calcDistK", { p: pp }), ds.map((v, j) => (j === b ? `<span class="hl">${item(v, j)}</span>` : item(v, j))).join("　") + "　" + t("calcDistTo", { b: b + 1 })) +
+            row(t("calcSseK"), step > 1 ? t("calcSseAssign", { sse: fmt(st.sse, 2), prev: fmt(H[step - 1].sse, 2) }) : t("calcSse", { sse: fmt(st.sse, 2) }));
         }
         drawHist(); drawElbow();
         prevBtn.disabled = resetBtn.disabled = step === 0;
@@ -198,7 +197,7 @@
         const py = axes(hist, m, CW, CH, top, Array.from({ length: Math.round(top / 50) + 1 }, (_, i) => i * 50).filter((v, i, a) => a.length <= 6 || i % 2 === 0));
         const N = Math.max(H.length - 1, 4), px = (i) => m.l + (i / N) * (CW - m.l - m.r);
         for (let i = 0; i <= N; i++) hist.append(s("text", { x: px(i), y: CH - m.b + 14, "text-anchor": "middle", "font-size": 10, class: "t-mono t-muted", text: i }));
-        hist.append(s("text", { x: CW - m.r, y: CH - 3, "text-anchor": "end", "font-size": 10.5, class: "t-muted", text: "步" }));
+        hist.append(s("text", { x: CW - m.r, y: CH - 3, "text-anchor": "end", "font-size": 10.5, class: "t-muted", text: t("histX") }));
         const shown = pts.filter((v) => v[0] <= step);
         if (shown.length) {
           hist.append(s("path", { d: shown.map((v, i) => (i ? "L" : "M") + px(v[0]).toFixed(1) + "," + py(v[1]).toFixed(1)).join(""), fill: "none", stroke: "var(--accent)", "stroke-width": 2 }));
@@ -214,17 +213,17 @@
         const px = (kk) => m.l + ((kk - 1) / 5) * (CW - m.l - m.r);
         elbow.append(s("rect", { x: px(k) - 11, y: m.t, width: 22, height: CH - m.t - m.b, fill: "var(--hot-soft)" }));
         for (let kk = 1; kk <= 6; kk++) elbow.append(s("text", { x: px(kk), y: CH - m.b + 14, "text-anchor": "middle", "font-size": 10, class: "t-mono t-muted", text: kk }));
-        elbow.append(s("text", { x: CW - m.r, y: CH - 3, "text-anchor": "end", "font-size": 10.5, class: "t-muted", text: "群數 k" }));
+        elbow.append(s("text", { x: CW - m.r, y: CH - 3, "text-anchor": "end", "font-size": 10.5, class: "t-muted", text: t("elbowX") }));
         elbow.append(s("path", { d: BEST.map((v, i) => (i ? "L" : "M") + px(i + 1).toFixed(1) + "," + py(v).toFixed(1)).join(""), fill: "none", stroke: "var(--ink)", "stroke-width": 2 }));
         BEST.forEach((v, i) => {
           elbow.append(s("circle", { cx: px(i + 1), cy: py(v), r: 3.5, fill: "var(--ink)" }));
           elbow.append(s("text", { x: i === 5 ? px(i + 1) : px(i + 1) + 6, y: py(v) - 7, "text-anchor": i === 5 ? "middle" : "start", "font-size": 10, class: "t-mono t-halo", text: fmt(v, 1) }));
         });
-        elbow.append(s("text", { x: px(3) + 8, y: py(BEST[2]) - 26, "font-size": 11, "font-weight": 700, fill: "var(--accent)", class: "t-halo", text: "← 從這裡開始下降變緩" }));
+        elbow.append(s("text", { x: px(3) + 8, y: py(BEST[2]) - 26, "font-size": 11, "font-weight": 700, fill: "var(--accent)", class: "t-halo", text: t("elbowHint") }));
       }
 
       rebuild();
-      note.innerHTML = `中心的位置就是組員的平均（mean），名稱裡的「means」由此而來；k 是要分幾群。SSE（組內距離平方和）在「分組」和「移動中心」兩步都只會變小，所以一定會停，但停的地方不一定是最好的：試「故意放壞的位置」，兩個中心擠在同一團，最後把右邊和上面兩團併成一群。實務上會換幾組初始值多跑幾次，或用 k-means++（讓初始中心彼此離遠一點）。群數越多 SSE 一定越小（每個點自成一群時是 0），所以不能只看 SSE 選 k；右下圖下降突然變緩的地方（像手肘）是常用的參考，叫エルボー法。不必事先決定群數、由近到遠一步步合併成樹狀圖（<span class="jp">デンドログラム</span>）的方法有<span class="jp">ウォード法</span>等。另一種常見的教師なし学習是降維，見<a href="#pca">主成分分析</a>。`;
+      note.innerHTML = t("note");
       return { destroy() { player.pause(); } };
     },
   });
