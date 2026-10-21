@@ -1,35 +1,35 @@
-/* Depthwise Separable Convolution（シラバス §18）
-   ① 小例子：入力 5×5×3 → 出力 3×3×4。
-      標準卷積：每個出力通道一個 3×3×3 濾波器（同時看空間和所有通道）。
+/* 深度可分離卷積／Depthwise Separable Convolution（シラバス §18）
+   ① 小例子：輸入 5×5×3 → 輸出 3×3×4。
+      標準卷積：每個輸出通道一個 3×3×3 濾波器（同時看空間和所有通道）。
       DS：Depthwise（每個通道各自一個 3×3）→ Pointwise（1×1，把通道混合）。
       這裡的標準卷積權重設成「Pointwise 係數 × Depthwise 濾波器」，所以兩種做法輸出完全相同，可直接比較計算量。
-   ② 計算機：調 入力通道・出力通道・カーネル・特徴マップ大小，比較權重數與乘法次數。 */
+   ② 計算機：調輸入通道・輸出通道・卷積核・特徵圖大小，比較權重數與乘法次數。
+   文字在 locales/zh/dwsep.js、locales/ja/dwsep.js。 */
 Atlas.define("dwsep", {
-  lead: `<p>標準卷積的每個濾波器同時處理「空間上的 3×3」和「所有通道」，通道一多，權重和計算量就爆增，手機跑不動。<span class="jp">Depthwise Separable Convolution</span>（深度可分離卷積，<span class="en">depthwise separable convolution</span>）把這件事拆成兩步：先各通道自己看空間，再用 1×1 把通道混合。</p>`,
-  closing: `拆開後，空間的工作（Depthwise）和通道的工作（Pointwise）各做一次就好，不必為每個出力通道重做一遍。計算量約變成原本的 1/出力通道數 + 1/(カーネル邊長)²，3×3 時大約少 8〜9 倍；代價是能表達的濾波器種類受限。MobileNet 就是靠它把模型做小。`,
-
   mount(bench, ctx) {
     const { h, fmt, ui } = Atlas;
+    const { t } = ctx;
     const N = 5, K = 3, O = N - K + 1, CIN = 3, COUT = 4;
     const INP = [
       Array.from({ length: N }, (_, r) => Array.from({ length: N }, (_, c) => (c === 1 ? 1 : 0))), // 縱線
       Array.from({ length: N }, (_, r) => Array.from({ length: N }, (_, c) => (r === 3 ? 1 : 0))), // 橫線
       Array.from({ length: N }, (_, r) => Array.from({ length: N }, (_, c) => (r === c ? 1 : 0))), // 斜線
     ];
-    const CH = ["縱線", "橫線", "斜線"];
+    const CH = [t("chVert"), t("chHorz"), t("chDiag")];
     const D = [
-      { name: "縱向邊緣", w: [[1, 0, -1], [1, 0, -1], [1, 0, -1]] },
-      { name: "橫向邊緣", w: [[1, 1, 1], [0, 0, 0], [-1, -1, -1]] },
-      { name: "十字加總", w: [[0, 1, 0], [1, 1, 1], [0, 1, 0]] },
+      { name: t("dVert"), w: [[1, 0, -1], [1, 0, -1], [1, 0, -1]] },
+      { name: t("dHorz"), w: [[1, 1, 1], [0, 0, 0], [-1, -1, -1]] },
+      { name: t("dCross"), w: [[0, 1, 0], [1, 1, 1], [0, 1, 0]] },
     ];
     const PW = [[1, 0, 0], [0, 1, 1], [1, -1, 0], [-1, 0, 1]]; // PW[出力 o][通道 c]
     const STD = PW.map((p) => D.map((d, c) => d.w.map((row) => row.map((v) => p[c] * v)))); // STD[o][c] 3×3
 
     const win = (c, i, j) => { const v = []; for (let a = 0; a < K; a++) for (let b = 0; b < K; b++) v.push(INP[c][i + a][j + b]); return v; };
-    const DW = D.map((d, c) => Array.from({ length: O }, (_, i) => Array.from({ length: O }, (_, j) => win(c, i, j).reduce((s, x, t) => s + x * d.w[Math.floor(t / K)][t % K], 0))));
+    const DW = D.map((d, c) => Array.from({ length: O }, (_, i) => Array.from({ length: O }, (_, j) => win(c, i, j).reduce((acc, x, k) => acc + x * d.w[Math.floor(k / K)][k % K], 0))));
     const OUT = PW.map((p) => Array.from({ length: O }, (_, i) => Array.from({ length: O }, (_, j) => p.reduce((s, pc, c) => s + pc * DW[c][i][j], 0))));
     const OUT_STD = STD.map((f) => Array.from({ length: O }, (_, i) => Array.from({ length: O }, (_, j) =>
-      f.reduce((s, fc, c) => s + win(c, i, j).reduce((t, x, k) => t + x * fc[Math.floor(k / K)][k % K], 0), 0))));
+      f.reduce((acc, fc, c) => acc + win(c, i, j).reduce((a2, x, k) => a2 + x * fc[Math.floor(k / K)][k % K], 0), 0))));
+    const num = (v) => v.toLocaleString("en-US");
     const fi = (v) => (v === 0 ? "0" : v < 0 ? "−" + -v : String(v));
     const fiP = (v) => (v < 0 ? "(" + fi(v) + ")" : fi(v));
 
@@ -64,23 +64,23 @@ Atlas.define("dwsep", {
     bench.classList.add("ds");
 
     /* ---------- controls ---------- */
-    const viewSeg = ui.seg({ label: "看哪一部分", value: view, options: [
-      { value: "std", label: "① 標準卷積（一步做完）" }, { value: "ds", label: "② Depthwise Separable（兩步）" }, { value: "calc", label: "③ 參數量計算機" }],
+    const viewSeg = ui.seg({ label: t("viewLabel"), value: view, options: [
+      { value: "std", label: t("viewStd") }, { value: "ds", label: t("viewDs") }, { value: "calc", label: t("viewCalc") }],
       onChange: (v) => { view = v; render(); } });
-    const oSeg = ui.seg({ label: "看第幾個出力通道", value: oSel, options: [0, 1, 2, 3].map((v) => ({ value: v, label: `出力 ${v + 1}` })), onChange: (v) => { oSel = v; render(); } });
+    const oSeg = ui.seg({ label: t("oLabel"), value: oSel, options: [0, 1, 2, 3].map((v) => ({ value: v, label: t("outN", { o: v + 1 }) })), onChange: (v) => { oSel = v; render(); } });
     const pick = (opts) => ui.seg(opts);
-    const cinSeg = pick({ label: "入力通道數", value: cin, options: [3, 16, 64, 128, 256, 512].map((v) => ({ value: v, label: String(v) })), onChange: (v) => { cin = v; render(); } });
-    const coutSeg = pick({ label: "出力通道數", value: cout, options: [4, 16, 64, 128, 256, 512].map((v) => ({ value: v, label: String(v) })), onChange: (v) => { cout = v; render(); } });
-    const kSeg = pick({ label: "カーネル邊長", value: kk, options: [3, 5, 7].map((v) => ({ value: v, label: `${v}×${v}` })), onChange: (v) => { kk = v; render(); } });
-    const hSeg = pick({ label: "特徴マップ邊長", value: hh, options: [3, 7, 14, 28, 56, 112].map((v) => ({ value: v, label: String(v) })), onChange: (v) => { hh = v; render(); } });
+    const cinSeg = pick({ label: t("cinLabel"), value: cin, options: [3, 16, 64, 128, 256, 512].map((v) => ({ value: v, label: String(v) })), onChange: (v) => { cin = v; render(); } });
+    const coutSeg = pick({ label: t("coutLabel"), value: cout, options: [4, 16, 64, 128, 256, 512].map((v) => ({ value: v, label: String(v) })), onChange: (v) => { cout = v; render(); } });
+    const kSeg = pick({ label: t("kLabel"), value: kk, options: [3, 5, 7].map((v) => ({ value: v, label: `${v}×${v}` })), onChange: (v) => { kk = v; render(); } });
+    const hSeg = pick({ label: t("hLabel"), value: hh, options: [3, 7, 14, 28, 56, 112].map((v) => ({ value: v, label: String(v) })), onChange: (v) => { hh = v; render(); } });
     const presets = h("div", { class: "btn-group" },
-      ui.btn("這頁的小例子（3→4、出力 3×3）", () => { cin = 3; cout = 4; kk = 3; hh = 3; sync(); render(); }, { sm: true }),
-      ui.btn("MobileNet 中段（256→256、14×14）", () => { cin = 256; cout = 256; kk = 3; hh = 14; sync(); render(); }, { sm: true }));
+      ui.btn(t("preSmall"), () => { cin = 3; cout = 4; kk = 3; hh = 3; sync(); render(); }, { sm: true }),
+      ui.btn(t("preMobile"), () => { cin = 256; cout = 256; kk = 3; hh = 14; sync(); render(); }, { sm: true }));
     function sync() { cinSeg.set(cin); coutSeg.set(cout); kSeg.set(kk); hSeg.set(hh); }
 
     const rowSmall = h("div", { class: "bench__row" }, oSeg.el);
     const rowCalc = h("div", { class: "bench__row" }, cinSeg.el, coutSeg.el, kSeg.el, hSeg.el);
-    const rowPre = h("div", { class: "field" }, h("span", { class: "field__label" }, "快速選擇"), presets);
+    const rowPre = h("div", { class: "field" }, h("span", { class: "field__label" }, t("preLabel")), presets);
     const status = h("div", { class: "status" });
     const fig = h("div", { class: "scroll-x" });
     const hint = h("p", { class: "hint" });
@@ -96,7 +96,7 @@ Atlas.define("dwsep", {
       vals.forEach((row, r) => row.forEach((v, c) => {
         const props = { class: "ds-cell" + (opt.cur && opt.cur[0] === r && opt.cur[1] === c ? " cur" : ""),
           style: { background: Atlas.divColor(v, opt.max || 3), color: Math.abs(v) / (opt.max || 3) > 0.6 ? "var(--panel)" : "var(--ink)" },
-          "aria-label": `${opt.name || ""}第 ${r + 1} 列第 ${c + 1} 行，值 ${fi(v)}` };
+          "aria-label": t("cellAria", { name: opt.name || "", r: r + 1, c: c + 1, v: fi(v) }) };
         if (opt.onPick) { const b = h("button", { type: "button", ...props }, fi(v)); b.addEventListener("click", () => opt.onPick(r, c)); g.append(b); }
         else g.append(h("div", props, fi(v)));
       }));
@@ -107,23 +107,23 @@ Atlas.define("dwsep", {
     }
     const block = (cap, el, cls) => h("div", { class: "ds-block" + (cls ? " " + cls : "") }, el, h("div", { class: "ds-cap", html: cap }));
     const pickPx = (r, c) => { pi = r; pj = c; render(); };
-    const inputs = () => INP.map((m, c) => block(`通道 ${c + 1}<br>${CH[c]}`, grid(m, { size: "ds-s1", name: `入力通道 ${c + 1} `, win: [pi, pj], max: 1.6 })));
+    const inputs = () => INP.map((m, c) => block(t("capIn", { c: c + 1, name: CH[c] }), grid(m, { size: "ds-s1", name: t("nameIn", { c: c + 1 }), win: [pi, pj], max: 1.6 })));
     const row = (k, b) => `<span class="calc-row"><span class="k">${k}</span> ${b}</span>`;
-    const set = (k, t) => { status.className = "status status--" + k; status.textContent = t; };
+    const set = (k, msg) => { status.className = "status status--" + k; status.textContent = msg; };
 
     function countBars(a) {
       const items = [
-        ["權重數", a.wStd, a.wDs, `${a.kk}×${a.kk}×${a.cin}×${a.cout}`, `${a.kk}×${a.kk}×${a.cin} + ${a.cin}×${a.cout}`],
-        ["乘法次數", a.mStd, a.mDs, `${a.hh}×${a.hh} 格 × ${a.kk * a.kk * a.cin} × ${a.cout}`, `${a.hh}×${a.hh} 格 × (${a.kk * a.kk}×${a.cin} + ${a.cin}×${a.cout})`],
+        [t("barW"), a.wStd, a.wDs, `${a.kk}×${a.kk}×${a.cin}×${a.cout}`, `${a.kk}×${a.kk}×${a.cin} + ${a.cin}×${a.cout}`],
+        [t("barM"), a.mStd, a.mDs, t("fMulStd", { h: a.hh, kkc: a.kk * a.kk * a.cin, cout: a.cout }), t("fMulDs", { h: a.hh, kk: a.kk * a.kk, cin: a.cin, cout: a.cout })],
       ];
       const kids = [];
       for (const [lab, std, ds, fs, fd] of items) {
         kids.push(h("div", { class: "ds-h" }, lab));
-        kids.push(h("span", null, "標準卷積"), h("div", { class: "ds-bar ds-bar--std", style: { width: "100%" }, title: fs }, std.toLocaleString()));
+        kids.push(h("span", null, t("barStd")), h("div", { class: "ds-bar ds-bar--std", style: { width: "100%" }, title: fs }, num(std)));
         const pct = Math.max(0.6, (ds / std) * 100), inside = pct > 30;
-        kids.push(h("span", null, "DS"), h("div", { style: { width: "100%", display: "flex", alignItems: "center", gap: "6px" } },
-          h("div", { class: "ds-bar ds-bar--ds", style: { width: `${pct}%` }, title: fd }, inside ? ds.toLocaleString() : ""),
-          inside ? null : h("span", { class: "mono", style: { fontSize: "12px" } }, ds.toLocaleString())));
+        kids.push(h("span", null, t("barDs")), h("div", { style: { width: "100%", display: "flex", alignItems: "center", gap: "6px" } },
+          h("div", { class: "ds-bar ds-bar--ds", style: { width: `${pct}%` }, title: fd }, inside ? num(ds) : ""),
+          inside ? null : h("span", { class: "mono", style: { fontSize: "12px" } }, num(ds))));
       }
       bars.replaceChildren(...kids);
     }
@@ -134,61 +134,61 @@ Atlas.define("dwsep", {
     /* ---------- views ---------- */
     function renderStd() {
       const f = STD[oSel];
-      const filt = f.map((m, c) => block(`第 ${c + 1} 片`, grid(m, { size: "ds-s1", name: `濾波器第 ${c + 1} 片 `, max: 1.6 })));
-      const outs = OUT_STD.map((m, o) => block(`出力 ${o + 1}`, grid(m, { name: `出力通道 ${o + 1} `, cur: [pi, pj], onPick: pickPx, max: 6 }), o === oSel ? "" : "ds-dim"));
+      const filt = f.map((m, c) => block(t("capSlice", { c: c + 1 }), grid(m, { size: "ds-s1", name: t("nameFilt", { c: c + 1 }), max: 1.6 })));
+      const outs = OUT_STD.map((m, o) => block(t("outN", { o: o + 1 }), grid(m, { name: t("nameOut", { o: o + 1 }), cur: [pi, pj], onPick: pickPx, max: 6 }), o === oSel ? "" : "ds-dim"));
       fig.replaceChildren(h("div", { class: "ds-stage" },
-        h("div", { class: "ds-lab", html: `入力 5×5×3 <span>（橘框＝出力那一格看的範圍）</span>` }), h("div", { class: "ds-row" }, ...inputs()),
+        h("div", { class: "ds-lab", html: t("labInStd") }), h("div", { class: "ds-row" }, ...inputs()),
         h("div", { class: "ds-arrow", "aria-hidden": "true" }, "↓"),
-        h("div", { class: "ds-lab", html: `出力 ${oSel + 1} 的濾波器 3×3×3 <span>（一次看完 3 個通道，27 個權重）</span>` }), h("div", { class: "ds-row" }, ...filt),
+        h("div", { class: "ds-lab", html: t("labFilt", { o: oSel + 1 }) }), h("div", { class: "ds-row" }, ...filt),
         h("div", { class: "ds-arrow", "aria-hidden": "true" }, "↓"),
-        h("div", { class: "ds-lab", html: `出力 3×3×4 <span>（每個出力通道各有一個這樣的濾波器）</span>` }), h("div", { class: "ds-row" }, ...outs)));
-      const parts = [0, 1, 2].map((c) => win(c, pi, pj).reduce((t, x, k) => t + x * f[c][Math.floor(k / K)][k % K], 0));
-      calc.innerHTML = row(`出力 ${oSel + 1}、第 ${pi + 1} 列第 ${pj + 1} 格`, `3 個通道各 9 個乘積（共 27 個）分別加總：${parts.map(fiP).join(" + ")} = <span class="hl">${fi(OUT_STD[oSel][pi][pj])}</span>`) +
-        row("整層", `4 個出力通道 × 9 格，每格都要做 27 次乘法`);
-      set("warn", `標準卷積：4 個濾波器 × 27 個權重 = 108 個權重；乘法 9 格 × 4 × 27 = 972 次`);
-      hint.textContent = "點出力的格子，換一格看；上面的分段鈕換出力通道。";
+        h("div", { class: "ds-lab", html: t("labOut") }), h("div", { class: "ds-row" }, ...outs)));
+      const parts = [0, 1, 2].map((c) => win(c, pi, pj).reduce((acc, x, k) => acc + x * f[c][Math.floor(k / K)][k % K], 0));
+      calc.innerHTML = row(t("calcStdK", { o: oSel + 1, r: pi + 1, c: pj + 1 }), t("calcStd", { expr: parts.map(fiP).join(" + "), v: fi(OUT_STD[oSel][pi][pj]) })) +
+        row(t("calcLayerK"), t("calcLayer"));
+      set("warn", t("statusStd"));
+      hint.textContent = t("hintStd");
       countBars(counts(CIN, COUT, K, O));
-      note.innerHTML = `這個標準卷積的權重刻意設成「② 的 Pointwise 係數 × Depthwise 濾波器」，所以兩邊的出力完全相同，方便比較計算量。一般訓練出的標準卷積權重可以是任意組合，DS 只能表示其中這一類。`;
+      note.innerHTML = t("noteStd");
     }
     function renderDs() {
-      const dws = DW.map((m, c) => block(`通道 ${c + 1} 的結果`, grid(m, { name: `Depthwise 通道 ${c + 1} `, cur: [pi, pj], onPick: pickPx, max: 3 })));
-      const kerns = D.map((d, c) => block(`通道 ${c + 1} 專用<br>${d.name}`, grid(d.w, { size: "ds-s1", name: `Depthwise 濾波器 ${c + 1} `, max: 1.6 })));
+      const dws = DW.map((m, c) => block(t("capDw", { c: c + 1 }), grid(m, { name: t("nameDw", { c: c + 1 }), cur: [pi, pj], onPick: pickPx, max: 3 })));
+      const kerns = D.map((d, c) => block(t("capDwF", { c: c + 1, name: d.name }), grid(d.w, { size: "ds-s1", name: t("nameDwF", { c: c + 1 }), max: 1.6 })));
       const pw = h("div", { class: "ds-block" },
         h("table", { class: "tbl" },
-          h("thead", null, h("tr", null, h("th", { class: "l" }, "1×1 係數"), ...[1, 2, 3].map((c) => h("th", null, `通道 ${c}`)))),
-          h("tbody", null, ...PW.map((p, o) => h("tr", { class: o === oSel ? "is-sel" : "" }, h("td", { class: "l" }, `出力 ${o + 1}`), ...p.map((v) => h("td", null, fi(v))))))),
-        h("div", { class: "ds-cap" }, "Pointwise 的權重：4 組 × 3 個"));
-      const outs = OUT.map((m, o) => block(`出力 ${o + 1}`, grid(m, { name: `出力通道 ${o + 1} `, cur: [pi, pj], onPick: pickPx, max: 6 }), o === oSel ? "" : "ds-dim"));
+          h("thead", null, h("tr", null, h("th", { class: "l" }, t("pwHead")), ...[1, 2, 3].map((c) => h("th", null, t("pwCh", { c }))))),
+          h("tbody", null, ...PW.map((p, o) => h("tr", { class: o === oSel ? "is-sel" : "" }, h("td", { class: "l" }, t("outN", { o: o + 1 })), ...p.map((v) => h("td", null, fi(v))))))),
+        h("div", { class: "ds-cap" }, t("pwCap")));
+      const outs = OUT.map((m, o) => block(t("outN", { o: o + 1 }), grid(m, { name: t("nameOut", { o: o + 1 }), cur: [pi, pj], onPick: pickPx, max: 6 }), o === oSel ? "" : "ds-dim"));
       fig.replaceChildren(h("div", { class: "ds-stage" },
-        h("div", { class: "ds-lab", html: `入力 5×5×3` }), h("div", { class: "ds-row" }, ...inputs()),
+        h("div", { class: "ds-lab", html: t("labInDs") }), h("div", { class: "ds-row" }, ...inputs()),
         h("div", { class: "ds-arrow", "aria-hidden": "true" }, "↓"),
-        h("div", { class: "ds-lab", html: `① Depthwise：每個通道只用自己的 3×3 <span>（3 × 9 = 27 個權重）</span>` }), h("div", { class: "ds-row" }, ...kerns),
+        h("div", { class: "ds-lab", html: t("labDw") }), h("div", { class: "ds-row" }, ...kerns),
         h("div", { class: "ds-row" }, ...dws),
         h("div", { class: "ds-arrow", "aria-hidden": "true" }, "↓"),
-        h("div", { class: "ds-lab", html: `② Pointwise：1×1 卷積，在每一格把 3 個通道加權混合 <span>（4 × 3 = 12 個權重）</span>` }), pw,
+        h("div", { class: "ds-lab", html: t("labPw") }), pw,
         h("div", { class: "ds-row" }, ...outs)));
       const d = [0, 1, 2].map((c) => DW[c][pi][pj]), p = PW[oSel];
       calc.innerHTML =
-        row(`① 第 ${pi + 1} 列第 ${pj + 1} 格`, d.map((v, c) => `通道 ${c + 1}：9 個乘積加總 = ${fi(v)}`).join("；")) +
-        row(`② 混成出力 ${oSel + 1}`, `${p.map((pc, c) => `${fiP(pc)}×${fiP(d[c])}`).join(" + ")} = <span class="hl">${fi(OUT[oSel][pi][pj])}</span>`) +
-        row("和 ① 標準卷積比", `出力完全相同（${OUT.every((m, o) => m.every((r, i) => r.every((v, j) => v === OUT_STD[o][i][j]))) ? "4 個通道 9 格全部一致" : "不一致"}）`);
-      set("ok", `兩步合計 27 + 12 = 39 個權重（標準 108）；乘法 9×3×9 + 9×4×3 = 351 次（標準 972）`);
-      hint.textContent = "點任一張 3×3 結果的格子換位置；上面的分段鈕換出力通道。";
+        row(t("calcDwK", { r: pi + 1, c: pj + 1 }), d.map((v, c) => t("calcDwPart", { c: c + 1, v: fi(v) })).join(t("calcDwSep"))) +
+        row(t("calcPwK", { o: oSel + 1 }), `${p.map((pc, c) => `${fiP(pc)}×${fiP(d[c])}`).join(" + ")} = <span class="hl">${fi(OUT[oSel][pi][pj])}</span>`) +
+        row(t("calcCmpK"), t("calcCmp", { res: t(OUT.every((m, o) => m.every((r, i) => r.every((v, j) => v === OUT_STD[o][i][j]))) ? "cmpSame" : "cmpDiff") }));
+      set("ok", t("statusDs"));
+      hint.textContent = t("hintDs");
       countBars(counts(CIN, COUT, K, O));
-      note.innerHTML = `Depthwise 只看空間、不混通道；Pointwise 只混通道、不看空間。1×1 卷積也叫 <span class="jp">Pointwise Convolution</span>。小例子只有 4 個出力通道，省得不多；通道越多省越多，到 ③ 試試。`;
+      note.innerHTML = t("noteDs");
     }
     function renderCalc() {
       const a = counts(cin, cout, kk, hh);
       const ratio = a.wDs / a.wStd;
       fig.replaceChildren();
       calc.innerHTML =
-        row("標準", `權重 ${kk}×${kk}×${cin}×${cout} = ${a.wStd.toLocaleString()}`) +
-        row("DS", `權重 ${kk}×${kk}×${cin} + ${cin}×${cout} = ${a.wDs.toLocaleString()}`) +
-        row("比例", `DS ÷ 標準 = 1/${cout} + 1/${kk}² = ${fmt(1 / cout, 4)} + ${fmt(1 / (kk * kk), 4)} = <span class="hl">${fmt(ratio, 3)}</span>　<span class="k">（乘法次數的比例也一樣）</span>`);
-      set(ratio < 0.2 ? "ok" : ratio < 0.5 ? "warn" : "bad", `DS 只需要標準卷積的 ${fmt(ratio * 100, 1)}%，約少 ${fmt(1 / ratio, 1)} 倍`);
+        row(t("calcStdRowK"), t("calcWeights", { expr: `${kk}×${kk}×${cin}×${cout}`, n: num(a.wStd) })) +
+        row(t("calcDsRowK"), t("calcWeights", { expr: `${kk}×${kk}×${cin} + ${cin}×${cout}`, n: num(a.wDs) })) +
+        row(t("calcRatioK"), t("calcRatio", { cout, kk, a: fmt(1 / cout, 4), b: fmt(1 / (kk * kk), 4), r: fmt(ratio, 3) }));
+      set(ratio < 0.2 ? "ok" : ratio < 0.5 ? "warn" : "bad", t("statusCalc", { pct: fmt(ratio * 100, 1), x: fmt(1 / ratio, 1) }));
       hint.textContent = "";
       countBars(a);
-      note.innerHTML = `乘法次數假設ストライド 1、パディング讓特徴マップ大小不變。出力通道多時 1/出力通道數 幾乎是 0，比例就由 1/(カーネル邊長)² 決定：3×3 約 1/9。`;
+      note.innerHTML = t("noteCalc");
     }
 
     function render() {

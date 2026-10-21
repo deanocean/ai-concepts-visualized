@@ -1,14 +1,13 @@
-/* スキップ結合（ResNet）（シラバス §21）
-   和「勾配消失問題」頁同一個簡化網路：每層一個神經元、Sigmoid、權重 w、入力 1.0。
+/* 跳躍連接／スキップ結合（ResNet）（シラバス §21）
+   和「梯度消失問題」頁同一個簡化網路：每層一個神經元、Sigmoid、權重 w、輸入 1.0。
    上排：普通的網路   a_k = σ(w·a_{k−1})          → 梯度每層乘 w·σ′(z)
    下排：加上捷徑     a_k = a_{k−1} + σ(w·a_{k−1}) → 梯度每層乘 1 + w·σ′(z)
-   從最後一層往前逐層傳回梯度，兩排同時比較。 */
+   從最後一層往前逐層傳回梯度，兩排同時比較。
+   文字在 locales/zh/resnet.js、locales/ja/resnet.js。 */
 Atlas.define("resnet", {
-  lead: `<p>網路疊得越深，誤差逆伝播時梯度要連乘的次數越多，前面的層就學不動（勾配消失）。<span class="jp">スキップ結合</span>（跳躍連接，<span class="en">skip connection</span>）在層的旁邊多拉一條捷徑，把入力直接加到出力上，梯度也能沿這條捷徑原封不動地傳回去。</p>`,
-  closing: `有了捷徑，梯度每過一層乘的是「1 + 層的斜率」，而不是只有「層的斜率」；就算層的斜率很小，那個 1 也讓梯度不會連乘到 0。層本身只需要學「在入力之上再加多少」，也就是<span class="jp">残差</span>（殘差，<span class="en">residual</span>）。ResNet 用這個結構把網路疊到 152 層。`,
-
   mount(bench, ctx) {
     const { h, s, fmt, ui } = Atlas;
+    const { t } = ctx;
     const sigm = (x) => 1 / (1 + Math.exp(-x));
     const dsig = (z) => sigm(z) * (1 - sigm(z));
     const XIN = 1.0;
@@ -29,13 +28,13 @@ Atlas.define("resnet", {
     }
 
     /* ---------- controls ---------- */
-    const nSlider = ui.slider({ id: "rs-n", label: "層數", min: 2, max: 12, step: 1, value: N, format: (v) => v + " 層", onInput: (v) => { N = v; if (pos) pos = N; render(); } });
-    const wSlider = ui.slider({ id: "rs-w", label: "每層的權重 w", min: 0.5, max: 2.5, step: 0.05, value: w, format: (v) => v.toFixed(2), onInput: (v) => { w = v; if (pos) pos = N; render(); } });
+    const nSlider = ui.slider({ id: "rs-n", label: t("nLabel"), min: 2, max: 12, step: 1, value: N, format: (v) => t("nFmt", { n: v }), onInput: (v) => { N = v; if (pos) pos = N; render(); } });
+    const wSlider = ui.slider({ id: "rs-w", label: t("wLabel"), min: 0.5, max: 2.5, step: 0.05, value: w, format: (v) => v.toFixed(2), onInput: (v) => { w = v; if (pos) pos = N; render(); } });
     const player = ui.player(ctx, () => { if (pos >= N) return false; pos++; render(); return pos < N; }, 650);
-    const prevBtn = ui.btn("◀ 上一步", () => { player.pause(); if (pos > 0) { pos--; render(); } });
-    const nextBtn = ui.btn("往前傳一層 ▶", () => { player.pause(); if (pos < N) { pos++; render(); } }, { primary: true });
-    const allBtn = ui.btn("全部算完", () => { player.pause(); pos = N; render(); });
-    const resetBtn = ui.btn("重設", () => { player.pause(); pos = 0; render(); });
+    const prevBtn = ui.btn(t("btnPrev"), () => { player.pause(); if (pos > 0) { pos--; render(); } });
+    const nextBtn = ui.btn(t("btnNext"), () => { player.pause(); if (pos < N) { pos++; render(); } }, { primary: true });
+    const allBtn = ui.btn(t("btnAll"), () => { player.pause(); pos = N; render(); });
+    const resetBtn = ui.btn(t("btnReset"), () => { player.pause(); pos = 0; render(); });
 
     const status = h("div", { class: "status" });
     const svgWrap = h("div", { class: "scroll-x" });
@@ -71,20 +70,20 @@ Atlas.define("resnet", {
       const cx = (k) => LEFT + COLW * (k - 1) + COLW / 2;
       const known = (k) => pos > 0 && k > N - pos;
       const cur = pos > 0 ? N - pos + 1 : -1;
-      const svg = s("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": "沒有捷徑與有捷徑的網路，各層的輸出與傳回的梯度", style: `display:block;width:100%;min-width:${Math.min(VW, 600)}px;max-width:${VW}px` });
+      const svg = s("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": t("svgAria"), style: `display:block;width:100%;min-width:${Math.min(VW, 600)}px;max-width:${VW}px` });
 
       function lane(M, y0, residual) {
         const yG = y0 + 32, yN = y0 + (residual ? 108 : 92);
         svg.append(s("text", { x: 8, y: y0 + 4, "font-size": 13, "font-weight": 700, fill: residual ? "var(--accent)" : "var(--ink)",
-          text: residual ? "加上スキップ結合（弧線＝捷徑：出力 = 層的結果 + 入力）" : "普通的網路（沒有捷徑）" }));
-        if (pos > 0) svg.append(s("text", { x: 8, y: yG + 4, "font-size": 12, "font-weight": 700, fill: "var(--hot)", text: "梯度" }));
-        svg.append(s("text", { x: 8, y: yN + 4, "font-size": 12, "font-weight": 700, text: "輸入" }));
+          text: t(residual ? "laneRes" : "lanePlain") }));
+        if (pos > 0) svg.append(s("text", { x: 8, y: yG + 4, "font-size": 12, "font-weight": 700, fill: "var(--hot)", text: t("laneGrad") }));
+        svg.append(s("text", { x: 8, y: yN + 4, "font-size": 12, "font-weight": 700, text: t("laneIn") }));
         svg.append(s("text", { x: 8, y: yN + 20, "font-size": 11, class: "t-mono t-muted", text: "x = " + fmt(XIN, 1) }));
         for (let k = 1; k <= N; k++) {
-          const x = cx(k), xin = k === 1 ? 46 : cx(k - 1) + (residual ? 37 : 22); // 有捷徑時從前一個 ⊕ 之後出發
+          const x = cx(k), xin = k === 1 ? 46 : cx(k - 1) + (residual ? 37 : 22); // 有捷徑時從前一個 + 之後出發
           svg.append(arrow(xin, yN, x - 24, yN, "var(--accent)", 1.6));
           if (residual) {
-            // 捷徑：從入力箭頭的起點，越過這一層，接回出力
+            // 捷徑：從輸入箭頭的起點，越過這一層，接回輸出
             const x1 = xin + 3, x2 = x + 31;
             svg.append(s("path", { d: `M${x1},${yN - 4} C${x1 + 4},${yN - 40} ${x2 - 4},${yN - 40} ${x2},${yN - 4}`, fill: "none", stroke: "var(--accent)", "stroke-width": 1.8, "stroke-dasharray": "5 3" }));
             svg.append(s("circle", { cx: x2, cy: yN, r: 6, fill: "var(--panel)", stroke: "var(--accent)", "stroke-width": 1.5 }));
@@ -93,7 +92,7 @@ Atlas.define("resnet", {
           const av = M.a[k];
           svg.append(s("rect", { x: x - 22, y: yN - 20, width: 44, height: 40, rx: 7, fill: "var(--accent-soft)", stroke: k === cur ? "var(--hot)" : "var(--accent)", "stroke-width": k === cur ? 2.5 : 1 }));
           svg.append(s("text", { x, y: yN + 5, "text-anchor": "middle", "font-size": 11.5, class: "t-mono", text: fmt(av, 2) }));
-          svg.append(s("text", { x, y: yN + 36, "text-anchor": "middle", "font-size": 11, class: "t-muted", text: `第 ${k} 層` }));
+          svg.append(s("text", { x, y: yN + 36, "text-anchor": "middle", "font-size": 11, class: "t-muted", text: t("layerK", { k }) }));
           if (known(k)) {
             const g = M.G[k], alpha = Math.max(0.12, Math.min(1, Math.sqrt(Math.min(g, 1))));
             svg.append(s("rect", { x: x - 27, y: yG - 12, width: 54, height: 22, rx: 11, fill: "var(--hot)", "fill-opacity": g > 1 ? 1 : alpha, stroke: "var(--hot)" }));
@@ -103,7 +102,7 @@ Atlas.define("resnet", {
         }
         const xe = cx(N) + (residual ? 37 : 24);
         svg.append(arrow(xe, yN, xe + 20, yN, "var(--accent)", 1.6));
-        svg.append(s("text", { x: xe + 24, y: yN + 4, "font-size": 12, text: "輸出" }));
+        svg.append(s("text", { x: xe + 24, y: yN + 4, "font-size": 12, text: t("laneOut") }));
       }
       lane(P, 16, false);
       svg.append(s("line", { x1: 4, x2: VW - 4, y1: 158, y2: 158, stroke: "var(--line)" }));
@@ -111,26 +110,26 @@ Atlas.define("resnet", {
       svgWrap.replaceChildren(svg);
 
       /* status & calc */
-      const set = (k, t) => { status.className = "status status--" + k; status.textContent = t; };
+      const set = (k, msg) => { status.className = "status status--" + k; status.textContent = msg; };
       const row = (k, b) => `<span class="calc-row"><span class="k">${k}</span> ${b}</span>`;
       if (pos === 0) {
-        set("info", "兩個網路都已算好正向（藍框＝每層的輸出）。按「往前傳一層」，把梯度從最後一層同時傳回去");
-        calc.innerHTML = row("普通", `第 k 層的輸出 = σ(w × 上一層)　例：第 1 層 σ(${fmt(w, 2)} × ${fmt(XIN, 1)}) = ${fmt(P.a[1], 3)}`) +
-          row("有捷徑", `第 k 層的輸出 = 上一層 + σ(w × 上一層)　例：第 1 層 ${fmt(XIN, 1)} + ${fmt(sigm(R.z[1]), 3)} = ${fmt(R.a[1], 3)}`);
+        set("info", t("statusStart"));
+        calc.innerHTML = row(t("calcPlainK"), t("calcPlain", { w: fmt(w, 2), x: fmt(XIN, 1), a: fmt(P.a[1], 3) })) +
+          row(t("calcResK"), t("calcRes", { x: fmt(XIN, 1), s: fmt(sigm(R.z[1]), 3), a: fmt(R.a[1], 3) }));
       } else if (pos === 1) {
-        set("warn", `從最後一層（第 ${N} 層）開始，兩邊的梯度都設為 1`);
-        calc.innerHTML = row("起點", `把最後一層收到的梯度當作 1，看它傳回每一層時還剩多少`);
+        set("warn", t("statusFirst", { n: N }));
+        calc.innerHTML = row(t("calcFirstK"), t("calcFirst"));
       } else {
         const k = N - pos + 1;
         const zp = P.z[k + 1], zr = R.z[k + 1];
         calc.innerHTML =
-          row(`普通：第 ${k + 1} → ${k} 層乘`, `w × σ′(z) = ${fmt(w, 2)} × σ′(${fmt(zp, 2)}) = ${fmt(w, 2)} × ${fmt(dsig(zp), 3)} = <span class="hl">${fmt(P.fac[k], 3)}</span>　梯度 ${fmtG(P.G[k])}`) +
-          row(`有捷徑：乘`, `1（捷徑） + w × σ′(z) = 1 + ${fmt(w, 2)} × ${fmt(dsig(zr), 3)} = <span class="hl">${fmt(R.fac[k], 3)}</span>　梯度 ${fmtG(R.G[k])}`);
-        if (pos < N) set("warn", `傳回第 ${k} 層：普通 ${fmtG(P.G[k])}，有捷徑 ${fmtG(R.G[k])}`);
+          row(t("calcStepPK", { k1: k + 1, k }), t("calcStepP", { w: fmt(w, 2), z: fmt(zp, 2), d: fmt(dsig(zp), 3), f: fmt(P.fac[k], 3), g: fmtG(P.G[k]) })) +
+          row(t("calcStepRK"), t("calcStepR", { w: fmt(w, 2), d: fmt(dsig(zr), 3), f: fmt(R.fac[k], 3), g: fmtG(R.G[k]) }));
+        if (pos < N) set("warn", t("statusStep", { k, gp: fmtG(P.G[k]), gr: fmtG(R.G[k]) }));
       }
       if (pos === N && N > 1) {
         const gp = P.G[1], gr = R.G[1];
-        set(gr > 0.3 && gr < 10 ? "ok" : "warn", `第 1 層收到的梯度：普通的網路 ${fmtG(gp)}${gp < 0.01 ? "（勾配消失）" : ""}；有捷徑 ${fmtG(gr)}${gr > 0.3 && gr < 10 ? "，保住了" : ""}`);
+        set(gr > 0.3 && gr < 10 ? "ok" : "warn", t("statusDone", { gp: fmtG(gp), vanish: gp < 0.01 ? t("doneVanish") : "", gr: fmtG(gr), kept: gr > 0.3 && gr < 10 ? t("doneKept") : "" }));
       }
 
       /* grouped bar chart (log scale) */
@@ -141,13 +140,13 @@ Atlas.define("resnet", {
         let lo = Math.floor(Math.log10(Math.min(...vals, 1))), hi = Math.ceil(Math.log10(Math.max(...vals, 1)));
         lo = Math.min(lo, -1); hi = Math.max(hi, 1);
         const BH = 210, top = 44, base = BH - 30;
-        const bs = s("svg", { viewBox: `0 0 ${VW} ${BH}`, role: "img", "aria-label": "各層收到的梯度：普通 vs 有捷徑（對數刻度）", style: `display:block;width:100%;min-width:${Math.min(VW, 600)}px;max-width:${VW}px` });
+        const bs = s("svg", { viewBox: `0 0 ${VW} ${BH}`, role: "img", "aria-label": t("barAria"), style: `display:block;width:100%;min-width:${Math.min(VW, 600)}px;max-width:${VW}px` });
         const py = (v) => base - ((Math.log10(v) - lo) / (hi - lo)) * (base - top);
-        bs.append(s("text", { x: 8, y: 14, "font-size": 12, "font-weight": 700, text: "各層收到的梯度（最後一層 = 1，對數刻度：每格差 10 倍）" }));
+        bs.append(s("text", { x: 8, y: 14, "font-size": 12, "font-weight": 700, text: t("barTitle") }));
         bs.append(s("rect", { x: 8, y: 22, width: 12, height: 12, rx: 2, fill: "var(--hot)" }));
-        bs.append(s("text", { x: 24, y: 32, "font-size": 11.5, text: "普通" }));
+        bs.append(s("text", { x: 24, y: 32, "font-size": 11.5, text: t("legPlain") }));
         bs.append(s("rect", { x: 66, y: 22, width: 12, height: 12, rx: 2, fill: "var(--accent)" }));
-        bs.append(s("text", { x: 82, y: 32, "font-size": 11.5, text: "有捷徑" }));
+        bs.append(s("text", { x: 82, y: 32, "font-size": 11.5, text: t("legRes") }));
         const stepE = hi - lo > 6 ? 2 : 1;
         for (let e = lo; e <= hi; e += stepE) {
           bs.append(s("line", { x1: LEFT - 6, x2: cx(N) + 30, y1: py(10 ** e), y2: py(10 ** e), stroke: e === 0 ? "var(--line-strong)" : "var(--line)", "stroke-dasharray": e === 0 ? null : "3 3" }));
@@ -163,13 +162,13 @@ Atlas.define("resnet", {
             bs.append(s("rect", { x: x + off, y: y1, width: 13, height: Math.max(1, y0 - y1), rx: 2, fill: col }));
           });
         }
-        bs.append(s("text", { x: cx(N) + 34, y: base + 16, "font-size": 11, class: "t-muted", text: "← 層" }));
+        bs.append(s("text", { x: cx(N) + 34, y: base + 16, "font-size": 11, class: "t-muted", text: t("barAxis") }));
         barWrap.append(bs);
       }
 
       prevBtn.disabled = pos === 0;
       nextBtn.disabled = allBtn.disabled = pos >= N;
-      note.innerHTML = `σ′ 是 Sigmoid 的斜率 σ(z)(1 − σ(z))，最大只有 0.25，所以 w = 1 時普通的網路每層至少縮成四分之一。示範網路每層只有一個神經元；真正的 ResNet 每個捷徑跨過兩三層卷積（中間有バッチ正規化和 ReLU），但「梯度多一條乘 1 的路」的道理相同。在真正的 ResNet 裡，殘差那一路的權重若都學成 0，區塊就等於把入力原樣傳下去，所以多疊的層至少不容易讓結果變差。同一個網路沒有捷徑時的完整情形見 <a href="#vanish">勾配消失問題</a>。`;
+      note.innerHTML = t("note");
     }
     render();
     ctx.onTheme(render);
