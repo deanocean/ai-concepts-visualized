@@ -55,7 +55,7 @@
 | 機器學習基礎 | kernel (svm)、kmeans、pca、roc |
 | 神經網路怎麼學習 | gd (gradient-descent)、sgd、optim、backprop、vanish (vanishing)、act (activation)、loss、overfit (overfitting)、dropout、norm |
 | 卷積與影像 ✓ | ~~conv (convolution)~~、~~pool (pooling)~~、~~dilated~~、~~dwsep~~、~~resnet~~ |
-| 序列與語言 | rnn (rnn-vanishing)、lstm、teacher、seq2seq、selfatt (self-attention)、mha、posenc、transformer、w2v |
+| 序列與語言 ✓ | ~~rnn (rnn-vanishing)~~、~~lstm~~、~~teacher~~、~~seq2seq~~、~~selfatt (self-attention)~~、~~mha~~、~~posenc~~、~~transformer~~、~~w2v~~ |
 | 生成模型 | ae、vae、gan、diffusion |
 | 強化學習 | bandit、qlearn |
 

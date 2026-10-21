@@ -42,6 +42,10 @@
 | 梯度消失 | 勾配消失 | vanishing gradient |
 | 激活函數 | 活性化関数 | activation function |
 | 損失函數 | 誤差関数 | loss function |
+| 交叉熵 | 交差エントロピー | cross entropy |
+| Sigmoid 函數 | シグモイド関数 | sigmoid function |
+| softmax 函數 | ソフトマックス関数 | softmax function |
+| epoch | エポック | epoch |
 | 過擬合 | 過学習 | overfitting |
 | 正則化 | 正則化 | regularization |
 | 正規化層 | 正規化層 | normalization layer |
@@ -82,7 +86,27 @@
 | 自注意力 | Self-Attention | self-attention |
 | 多頭注意力 | Multi-Head Attention | multi-head attention |
 | 位置編碼 | 位置エンコーディング | positional encoding |
+| 循環神經網路（RNN） | リカレントニューラルネットワーク（RNN） | recurrent neural network |
+| 隱藏狀態 | 隠れ状態 | hidden state |
+| 時間反向傳播（BPTT） | BPTT | backpropagation through time |
+| 梯度爆炸 | 勾配爆発問題 | exploding gradient |
+| 記憶單元 | メモリセル | memory cell |
+| 閘門 | ゲート | gate |
+| 更新閘／重設閘 | 更新ゲート／リセットゲート | update / reset gate |
+| 編碼器／解碼器 | エンコーダ／デコーダ | encoder / decoder |
+| 曝光偏差 | 露出バイアス | exposure bias |
+| Source-Target 注意力 | Source-Target Attention | source-target attention |
+| 查詢／鍵／值 | クエリ／キー／バリュー | query / key / value |
+| 頭（多頭注意力的一組） | ヘッド | head |
+| 遮罩 | マスク | mask |
+| 層正規化 | レイヤー正規化 | layer normalization |
 | 詞嵌入 | 単語埋め込み | word embedding |
+| one-hot 向量 | ワンホットベクトル | one-hot vector |
+| 分散式表示 | 分散表現 | distributed representation |
+| Skip-gram | スキップグラム | skip-gram |
+| CBOW | CBOW | continuous bag-of-words |
+| 餘弦相似度 | コサイン類似度 | cosine similarity |
+| 負採樣 | ネガティブサンプリング | negative sampling |
 
 ## 生成模型
 
