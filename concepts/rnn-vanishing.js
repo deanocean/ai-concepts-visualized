@@ -1,15 +1,14 @@
 /* RNN と勾配消失（シラバス §22）
    沿時間展開的 RNN：正向看隱藏狀態往後傳，反向（BPTT）看梯度往回傳時一路變淡；
-   切換 LSTM，看梯度沿記憶單元傳回時幾乎不衰減。數值皆即時計算（一維的簡化模型）。 */
+   切換 LSTM，看梯度沿記憶單元傳回時幾乎不衰減。數值皆即時計算（一維的簡化模型）。
+   文字在 locales/zh/rnn.js、locales/ja/rnn.js（例句的詞也在語言檔：tokens，以空白分隔）。 */
 Atlas.define("rnn", {
-  lead: `<p>句子要按順序讀，後面的詞常要靠前面的內容才能理解。<span class="jp">RNN</span>（循環神經網路，<span class="en">recurrent neural network</span>）每讀一個詞，就把「到目前為止讀到的內容」壓成一個<span class="jp">隠れ状態</span>（隱藏狀態，<span class="en">hidden state</span>）交給下一步。問題出在訓練：誤差要沿同一條路倒著傳回去，傳得越遠，梯度就越淡，前面的詞幾乎學不到東西。</p>`,
-  closing: `RNN 每往回一步，梯度都要乘上「w<sub>h</sub> × tanh 的斜率」，這個數通常小於 1，連乘下去就趨近 0，這就是<span class="jp">勾配消失問題</span>（梯度消失，<span class="en">vanishing gradient</span>）；LSTM 讓梯度沿記憶單元只乘上接近 1 的忘記閘，所以能傳到很前面。`,
-
   mount(bench, ctx) {
     const { h, s, fmt, fmtP, ui } = Atlas;
-    const TOK = ["小明", "昨天", "在", "車站", "遇到", "了", "老同學", "他", "很", "開心"];
+    const { t } = ctx;
+    const TOK = t("tokens").split(" ");
     const X = [0.9, -0.4, 0.2, 0.7, -0.6, 0.1, 0.8, 0.5, -0.3, 0.6];
-    const T = TOK.length, WX = 1.0;
+    const T = X.length, WX = 1.0;
     const sig = (z) => 1 / (1 + Math.exp(-z));
     const LP = { wf: 0.5, uf: 0.5, bf: 2.5, wi: 1, ui: 0.5, bi: -0.5, wg: 1, ug: 0.5, wo: 1, uo: 0.5, bo: 0.5 };
 
@@ -40,14 +39,14 @@ Atlas.define("rnn", {
     const fmtG = (v) => (v >= 0.1 ? v.toFixed(2) : v >= 0.001 ? v.toFixed(3) : v === 0 ? "0" : Number(v.toPrecision(1)).toString());
 
     /* ---------- controls ---------- */
-    const modeSeg = ui.seg({ label: "模型", value: mode, options: [{ value: "rnn", label: "RNN" }, { value: "lstm", label: "換成 LSTM" }],
+    const modeSeg = ui.seg({ label: t("modeLabel"), value: mode, options: [{ value: "rnn", label: "RNN" }, { value: "lstm", label: t("modeLstm") }],
       onChange: (v) => { mode = v; whSlider.el.hidden = v !== "rnn"; render(); } });
-    const whSlider = ui.slider({ id: "rnn-wh", label: "循環權重 w<sub>h</sub>（上一步狀態的權重）", min: 0.1, max: 2, step: 0.05, value: wh, format: (v) => v.toFixed(2), onInput: (v) => { wh = v; render(); } });
+    const whSlider = ui.slider({ id: "rnn-wh", label: t("whLabel"), min: 0.1, max: 2, step: 0.05, value: wh, format: (v) => v.toFixed(2), onInput: (v) => { wh = v; render(); } });
     const player = ui.player(ctx, () => { if (pos >= 2 * T) return false; pos++; render(); return pos < 2 * T; }, 700);
-    const prevBtn = ui.btn("◀ 上一步", () => { player.pause(); if (pos > 0) { pos--; render(); } });
-    const nextBtn = ui.btn("下一步 ▶", () => { player.pause(); if (pos < 2 * T) { pos++; render(); } }, { primary: true });
-    const jumpBtn = ui.btn("跳到反向傳播", () => { player.pause(); pos = T + 1; render(); });
-    const resetBtn = ui.btn("重設", () => { player.pause(); pos = 0; render(); });
+    const prevBtn = ui.btn(t("btnPrev"), () => { player.pause(); if (pos > 0) { pos--; render(); } });
+    const nextBtn = ui.btn(t("btnNext"), () => { player.pause(); if (pos < 2 * T) { pos++; render(); } }, { primary: true });
+    const jumpBtn = ui.btn(t("btnJump"), () => { player.pause(); pos = T + 1; render(); });
+    const resetBtn = ui.btn(t("btnReset"), () => { player.pause(); pos = 0; render(); });
 
     const phase = h("div", { class: "status" });
     const svgWrap = h("div", { class: "scroll-x" });
@@ -86,14 +85,14 @@ Atlas.define("rnn", {
       const lstm = !!Lm;
       const H = lstm ? 250 : 210;
       const yGrad = 22, yC = 78, yH = lstm ? 150 : 100, yTok = lstm ? 222 : 182;
-      const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "沿時間展開的網路", style: `display:block;width:100%;min-width:${W * 0.78}px;max-width:${W}px` });
+      const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": t("svgAria"), style: `display:block;width:100%;min-width:${W * 0.78}px;max-width:${W}px` });
 
       // row labels
       const lab = (y, t1, t2) => { svg.append(s("text", { x: 6, y: y - 2, "font-size": 12, "font-weight": 700, text: t1 })); if (t2) svg.append(s("text", { x: 6, y: y + 13, "font-size": 10.5, class: "t-muted", text: t2 })); };
-      lab(yTok, "輸入", "詞 → 數字");
-      lab(yH, "隱藏狀態", "h");
-      if (lstm) lab(yC, "記憶單元", "c（セル）");
-      if (back) svg.append(s("text", { x: 6, y: yGrad + 4, "font-size": 11.5, "font-weight": 700, fill: "var(--hot)", text: "梯度" }));
+      lab(yTok, t("rowIn"), t("rowInSub"));
+      lab(yH, t("rowH"), "h");
+      if (lstm) lab(yC, t("rowC"), "c");
+      if (back) svg.append(s("text", { x: 6, y: yGrad + 4, "font-size": 11.5, "font-weight": 700, fill: "var(--hot)", text: t("rowGrad") }));
 
       const hMax = 1;
       // highway for LSTM
@@ -136,70 +135,67 @@ Atlas.define("rnn", {
       // output / loss at end
       const xe = cx(T - 1) + 34;
       svg.append(arrow(xe, yH, xe + 30, yH, fwd === T ? "var(--accent)" : "var(--line)", 2));
-      svg.append(s("text", { x: xe + 36, y: yH - 4, "font-size": 12, fill: fwd === T ? "var(--ink)" : "var(--faint)", text: "輸出" }));
-      svg.append(s("text", { x: xe + 36, y: yH + 12, "font-size": 12, fill: fwd === T ? "var(--ink)" : "var(--faint)", text: "→ 損失" }));
+      svg.append(s("text", { x: xe + 36, y: yH - 4, "font-size": 12, fill: fwd === T ? "var(--ink)" : "var(--faint)", text: t("outLabel") }));
+      svg.append(s("text", { x: xe + 36, y: yH + 12, "font-size": 12, fill: fwd === T ? "var(--ink)" : "var(--faint)", text: t("lossLabel") }));
       svgWrap.replaceChildren(svg);
 
       /* ---------- phase + calc ---------- */
-      const set = (k, t) => { phase.className = "status status--" + k; phase.textContent = t; };
+      const set = (k, msg) => { phase.className = "status status--" + k; phase.textContent = msg; };
+      const k = (txt) => `<span class="k">${txt}</span>`;
       if (pos === 0) {
-        set("info", "① 正向傳播：按「下一步」把句子一個詞一個詞送進去");
-        calc.innerHTML = `<span class="k">每個詞先轉成數字（真實模型是一串數字，這裡簡化成一個）。隱藏狀態 h 也是一個數字，代表「到目前為止讀到的內容」的摘要，一開始是 0。</span>`;
+        set("info", t("statusStart"));
+        calc.innerHTML = k(t("calcStart"));
       } else if (pos <= T) {
-        const t = pos - 1;
-        set("info", `① 正向傳播：送入第 ${t + 1} 個詞「${TOK[t]}」`);
-        const hp = t ? M.H[t - 1] : 0;
+        const j = pos - 1;
+        set("info", t("statusFwd", { n: j + 1, tok: TOK[j] }));
+        const hp = j ? M.H[j - 1] : 0;
         if (!lstm) {
           calc.innerHTML =
-            `<span class="calc-row"><span class="k">新的狀態 = tanh(w<sub>h</sub> × 上一步狀態 + w<sub>x</sub> × 這個詞)</span></span>` +
-            `<span class="calc-row">h<sub>${t + 1}</sub> = tanh(${fmt(wh)} × ${fmtP(hp)} + ${fmt(WX, 1)} × ${fmtP(X[t], 1)}) = tanh(${fmt(R.pre[t])}) = <span class="hl">${fmt(R.H[t])}</span></span>`;
+            `<span class="calc-row">${k(t("calcRnnRule"))}</span>` +
+            `<span class="calc-row">h<sub>${j + 1}</sub> = tanh(${fmt(wh)} × ${fmtP(hp)} + ${fmt(WX, 1)} × ${fmtP(X[j], 1)}) = tanh(${fmt(R.pre[j])}) = <span class="hl">${fmt(R.H[j])}</span></span>`;
         } else {
-          const g = Lm.gates[t];
+          const g = Lm.gates[j];
           calc.innerHTML =
-            `<span class="calc-row"><span class="k">忘記閘</span> f = ${fmt(g.f)}　<span class="k">輸入閘</span> i = ${fmt(g.i)}　<span class="k">候選內容</span> g = ${fmt(g.g)}　<span class="k">輸出閘</span> o = ${fmt(g.o)}</span>` +
-            `<span class="calc-row"><span class="k">記憶單元</span> c<sub>${t + 1}</sub> = f × c<sub>${t}</sub> + i × g = ${fmt(g.f)} × ${fmtP(g.cPrev)} + ${fmt(g.i)} × ${fmtP(g.g)} = <span class="hl">${fmt(Lm.C[t])}</span></span>` +
-            `<span class="calc-row"><span class="k">隱藏狀態</span> h<sub>${t + 1}</sub> = o × tanh(c<sub>${t + 1}</sub>) = ${fmt(g.o)} × ${fmt(Math.tanh(Lm.C[t]))} = <span class="hl">${fmt(Lm.H[t])}</span></span>`;
+            `<span class="calc-row">${k(t("gateF"))} f = ${fmt(g.f)}　${k(t("gateI"))} i = ${fmt(g.i)}　${k(t("gateG"))} g = ${fmt(g.g)}　${k(t("gateO"))} o = ${fmt(g.o)}</span>` +
+            `<span class="calc-row">${k(t("rowC"))} c<sub>${j + 1}</sub> = f × c<sub>${j}</sub> + i × g = ${fmt(g.f)} × ${fmtP(g.cPrev)} + ${fmt(g.i)} × ${fmtP(g.g)} = <span class="hl">${fmt(Lm.C[j])}</span></span>` +
+            `<span class="calc-row">${k(t("rowH"))} h<sub>${j + 1}</sub> = o × tanh(c<sub>${j + 1}</sub>) = ${fmt(g.o)} × ${fmt(Math.tanh(Lm.C[j]))} = <span class="hl">${fmt(Lm.H[j])}</span></span>`;
         }
       } else {
-        const t = T - back; // 0-indexed 剛算出梯度的位置
+        const j = T - back; // 0-indexed 剛算出梯度的位置
         if (back === 1) {
-          set("warn", "② 反向傳播：在最後一步算出損失，梯度從這裡開始往回傳");
-          calc.innerHTML = `<span class="k">把最後一步的梯度當作 1（100%），看它傳回每個詞時還剩多少。沿時間倒著做誤差逆伝播，叫 </span><b>BPTT</b><span class="k">（通過時間的反向傳播，backpropagation through time）。</span>`;
+          set("warn", t("statusBackStart"));
+          calc.innerHTML = t("calcBackStart");
         } else {
-          set("warn", `② 反向傳播：梯度傳回第 ${t + 1} 個詞「${TOK[t]}」，剩 ${fmtG(M.G[t])}`);
+          set("warn", t("statusBack", { n: j + 1, tok: TOK[j], g: fmtG(M.G[j]) }));
           if (!lstm) {
-            const hn = R.H[t + 1];
+            const hn = R.H[j + 1];
             calc.innerHTML =
-              `<span class="calc-row"><span class="k">往回一步要乘上</span> w<sub>h</sub> × (1 − h<sub>${t + 2}</sub>²) = ${fmt(wh)} × (1 − ${fmtP(hn)}²) = ${fmt(wh)} × ${fmt(1 - hn * hn)} = <span class="hl">${fmt(R.F[t], 3)}</span></span>` +
-              `<span class="calc-row"><span class="k">梯度</span> ${fmtG(R.G[t + 1])} × ${fmt(R.F[t], 3)} = <span class="hl">${fmtG(R.G[t])}</span></span>`;
+              `<span class="calc-row">${k(t("calcRnnStepK"))} w<sub>h</sub> × (1 − h<sub>${j + 2}</sub>²) = ${fmt(wh)} × (1 − ${fmtP(hn)}²) = ${fmt(wh)} × ${fmt(1 - hn * hn)} = <span class="hl">${fmt(R.F[j], 3)}</span></span>` +
+              `<span class="calc-row">${k(t("rowGrad"))} ${fmtG(R.G[j + 1])} × ${fmt(R.F[j], 3)} = <span class="hl">${fmtG(R.G[j])}</span></span>`;
           } else {
             calc.innerHTML =
-              `<span class="calc-row"><span class="k">沿記憶單元往回一步，只乘上下一步的忘記閘</span> f<sub>${t + 2}</sub> = <span class="hl">${fmt(Lm.F[t], 3)}</span></span>` +
-              `<span class="calc-row"><span class="k">梯度</span> ${fmtG(Lm.G[t + 1])} × ${fmt(Lm.F[t], 3)} = <span class="hl">${fmtG(Lm.G[t])}</span></span>`;
+              `<span class="calc-row">${k(t("calcLstmStepK"))} f<sub>${j + 2}</sub> = <span class="hl">${fmt(Lm.F[j], 3)}</span></span>` +
+              `<span class="calc-row">${k(t("rowGrad"))} ${fmtG(Lm.G[j + 1])} × ${fmt(Lm.F[j], 3)} = <span class="hl">${fmtG(Lm.G[j])}</span></span>`;
           }
-          if (t === 0) set(lstm ? "ok" : "bad", lstm
-            ? `傳回第 1 個詞時，梯度還剩 ${fmtG(Lm.G[0])}（約 ${Math.round(Lm.G[0] * 100)}%）`
-            : `傳回第 1 個詞時，梯度只剩 ${fmtG(R.G[0])}（${(R.G[0] * 100).toFixed(R.G[0] < 0.01 ? 2 : 1)}%）：「${TOK[0]}」幾乎學不到`);
+          if (j === 0) set(lstm ? "ok" : "bad", lstm
+            ? t("statusEndLstm", { g: fmtG(Lm.G[0]), pct: Math.round(Lm.G[0] * 100) })
+            : t("statusEndRnn", { g: fmtG(R.G[0]), pct: (R.G[0] * 100).toFixed(R.G[0] < 0.01 ? 2 : 1), tok: TOK[0] }));
         }
       }
 
-      if (!lstm) {
-        note.innerHTML = `(1 − h²) 是 tanh 在那一點的斜率，最大只有 1；h 越接近 ±1，斜率越接近 0。試著把 w<sub>h</sub> 調大：狀態被 tanh 壓到 ±1 附近，梯度反而消失得更快。若換成不會壓縮的活性化関数、每步乘的數又大於 1，梯度會越傳越大，稱為<span class="jp">勾配爆発問題</span>（梯度爆炸，<span class="en">exploding gradient</span>）。同樣的連乘也發生在層數很深的網路，見 <a href="#vanish">勾配消失問題</a>。`;
-      } else {
-        note.innerHTML = `LSTM（長短期記憶，<span class="en">long short-term memory</span>）多了一條記憶單元 c 的直通路：每步只做「乘上<span class="jp">忘却ゲート</span>（忘記閘，<span class="en">forget gate</span>）再加上新內容」，不經過 tanh 的壓縮。忘記閘接近 1 時，梯度沿這條路往回傳幾乎不打折。各個閘門怎麼決定開關，見 <a href="#lstm">LSTM のゲート</a>。`;
-      }
+      note.innerHTML = t(lstm ? "noteLstm" : "noteRnn");
 
       /* ---------- gradient bars ---------- */
       barWrap.replaceChildren();
       if (back > 0) {
         const BW = W, BH = 150, top = 22, base = BH - 30;
-        const bs = s("svg", { viewBox: `0 0 ${BW} ${BH}`, role: "img", "aria-label": "傳回各詞的梯度大小", style: `display:block;width:100%;min-width:${BW * 0.78}px;max-width:${BW}px` });
+        const bs = s("svg", { viewBox: `0 0 ${BW} ${BH}`, role: "img", "aria-label": t("barAria"), style: `display:block;width:100%;min-width:${BW * 0.78}px;max-width:${BW}px` });
         const py = (v) => base - v * (base - top);
         [0, 0.5, 1].forEach((v) => {
           bs.append(s("line", { x1: LEFT - 8, x2: cx(T - 1) + 34, y1: py(v), y2: py(v), stroke: "var(--line)" }));
           bs.append(s("text", { x: LEFT - 12, y: py(v) + 4, "text-anchor": "end", "font-size": 10.5, class: "t-mono t-muted", text: v }));
         });
-        bs.append(s("text", { x: 6, y: 14, "font-size": 12, "font-weight": 700, text: "傳回各詞的梯度（最後一步＝1）" }));
+        bs.append(s("text", { x: 6, y: 14, "font-size": 12, "font-weight": 700, text: t("barTitle") }));
         for (let t = 0; t < T; t++) {
           if (!gKnown(t)) continue;
           const x = cx(t);
@@ -216,7 +212,7 @@ Atlas.define("rnn", {
           bs.append(s("text", { x, y: base + 16, "text-anchor": "middle", "font-size": 12, class: "t-muted", text: TOK[t] }));
         }
         barWrap.append(h("div", { class: "scroll-x" }, bs));
-        if (lstm) barWrap.append(h("p", { class: "hint", html: `<span style="color:var(--accent);font-weight:700">■ LSTM（沿記憶單元）</span>　<span style="color:var(--faint);font-weight:700">■ 同一句用 RNN（w<sub>h</sub> = ${fmt(wh)}）</span>` }));
+        if (lstm) barWrap.append(h("p", { class: "hint", html: `<span style="color:var(--accent);font-weight:700">■ ${t("legLstm")}</span>　<span style="color:var(--faint);font-weight:700">■ ${t("legRnn", { wh: fmt(wh) })}</span>` }));
       }
 
       prevBtn.disabled = pos === 0;

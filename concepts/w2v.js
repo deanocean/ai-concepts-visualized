@@ -2,23 +2,26 @@
    小語料 20 句、26 個詞。窗口 2（前後各 2 個詞），向量 8 維，完整 softmax（26 類），SGD η = 0.05，200 エポック，每エポック洗牌（固定種子）。
    スキップグラム：用中間的詞猜窗口內每個詞；CBOW：用窗口內詞向量的平均猜中間的詞。詞向量＝輸入側的權重 W_in 的那一列。
    實測種子 1〜5：スキップグラム每次「國王↔王后、貓↔狗、男人↔女人、魚↔肉」都互為最相近；三組類推（國王−男人+女人 等）兩種做法全部答對；
-   CBOW 不穩定（有些詞最相近的對象會跑掉，例如魚、肉）。平面圖＝8 維投影到前兩個主成分。 */
+   CBOW 不穩定（有些詞最相近的對象會跑掉，例如魚、肉）。平面圖＝8 維投影到前兩個主成分。
+   文字在 locales/zh/w2v.js、locales/ja/w2v.js。語料（corpus）也在語言檔：中文、日文各一份，句子以「/」、詞以空白分隔；
+   程式要用到的 9 個詞（國王、王后、男人、女人、貓、狗、魚、肉、水）由 keyWords 依序對應到 king、queen…。
+   日文語料（省略助詞的短句，語序是日文的）也實測過種子 1〜5：スキップグラム 4 對全部配成、類推全對，CBOW 一樣不穩定。 */
 (function () {
-  const SENT = [
-    "他 是 國王", "她 是 王后", "他 是 男人", "她 是 女人",
-    "國王 住 城堡", "王后 住 城堡", "男人 住 村莊", "女人 住 村莊",
-    "國王 戴 王冠", "王后 戴 王冠", "男人 下 田", "女人 下 田",
-    "貓 吃 魚", "狗 吃 肉", "貓 喝 水", "狗 喝 水",
-    "貓 在 家 睡覺", "狗 在 家 睡覺", "我 養 貓", "我 養 狗",
-  ].map((l) => l.split(" "));
-  const VOC = [...new Set(SENT.flat())], ID = Object.fromEntries(VOC.map((w, i) => [w, i])), NV = VOC.length;
   const D = 8, WIN = 2, LR = 0.05, EPOCHS = 200;
-  const GROUP = { 國王: "p", 王后: "p", 男人: "p", 女人: "p", 貓: "a", 狗: "a", 魚: "f", 肉: "f", 水: "f" };
   const GCOL = { p: "var(--pos)", a: "var(--hot)", f: "var(--ok)", o: "var(--muted)" };
-  const ANALOGY = [["國王", "男人", "女人"], ["男人", "國王", "王后"], ["王后", "女人", "男人"]];
-  // 訓練樣本：每個位置一筆（中間的詞、窗口內的詞）
-  const SAMPLES = [];
-  SENT.forEach((s, si) => s.forEach((w, i) => { const ctx = []; for (let j = Math.max(0, i - WIN); j <= Math.min(s.length - 1, i + WIN); j++) if (j !== i) ctx.push(ID[s[j]]); SAMPLES.push({ si, i, c: ID[w], ctx }); }));
+  const KEYS = ["king", "queen", "man", "woman", "cat", "dog", "fish", "meat", "water"];
+  let SENT, VOC, ID, NV, K, GROUP, ANALOGY, SAMPLES;
+  /** 依語言檔的語料建立詞彙表與訓練樣本；K：king 等 9 個 id → 這個語言的詞 */
+  function setCorpus(corpus, keyWords) {
+    SENT = corpus.split("/").map((l) => l.trim().split(/\s+/));
+    VOC = [...new Set(SENT.flat())]; ID = Object.fromEntries(VOC.map((w, i) => [w, i])); NV = VOC.length;
+    K = Object.fromEntries(keyWords.split(" ").map((w, i) => [KEYS[i], w]));
+    GROUP = { [K.king]: "p", [K.queen]: "p", [K.man]: "p", [K.woman]: "p", [K.cat]: "a", [K.dog]: "a", [K.fish]: "f", [K.meat]: "f", [K.water]: "f" };
+    ANALOGY = [[K.king, K.man, K.woman, K.queen], [K.man, K.king, K.queen, K.woman], [K.queen, K.woman, K.man, K.king]]; // 最後一個＝應該得到的答案
+    // 訓練樣本：每個位置一筆（中間的詞、窗口內的詞）
+    SAMPLES = [];
+    SENT.forEach((s, si) => s.forEach((w, i) => { const ctx = []; for (let j = Math.max(0, i - WIN); j <= Math.min(s.length - 1, i + WIN); j++) if (j !== i) ctx.push(ID[s[j]]); SAMPLES.push({ si, i, c: ID[w], ctx }); }));
+  }
 
   const cos = (a, b) => { let s = 0, na = 0, nb = 0; for (let i = 0; i < a.length; i++) { s += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; } return s / Math.sqrt(na * nb || 1); };
 
@@ -83,17 +86,16 @@
       comps.push(v);
     }
     const P = X.map((r) => comps.map((u) => r.reduce((a, x, j) => a + x * u[j], 0)));
-    [0, 1].forEach((k) => { if (P[ID["國王"]][k] < 0) P.forEach((p) => (p[k] = -p[k])); });
+    [0, 1].forEach((k) => { if (P[ID[K.king]][k] < 0) P.forEach((p) => (p[k] = -p[k])); });
     return P;
   }
 
   Atlas.define("w2v", {
-    lead: `<p>電腦處理文字前，要先把詞變成數字。最直接的做法是<span class="jp">ワンホットベクトル</span>（one-hot 向量，<span class="en">one-hot vector</span>）：詞彙有幾個就開幾維，該詞那一格是 1、其他是 0。但這樣任兩個詞都一樣「不像」，看不出「國王」和「王后」比和「水」接近。<span class="jp">単語埋め込み</span>（詞嵌入，<span class="en">word embedding</span>）改用幾維的實數向量表示一個詞，稱為<span class="jp">分散表現</span>（分散式表示，<span class="en">distributed representation</span>）；<span class="jp">word2vec</span> 的想法是：<b>出現在相似上下文的詞，意思也相近</b>，所以讓網路練習「由一個詞猜周圍的詞」，向量就會自己長出意義。</p>`,
-    closing: `訓練只是在練習「猜周圍的詞」，但上下文相似的詞會被推到相近的位置：用スキップグラム訓練，每一組初始值都把國王與王后、貓與狗、男人與女人、魚與肉配成彼此最相近。連「國王 − 男人 + 女人」這種向量加減都會落在王后附近（兩種訓練方式都是），因為「男→女」的差別在不同的詞上被學成差不多的方向。CBOW 在這麼小的語料上比較不穩定，有些詞最相近的對象會跑掉。`,
-
     mount(bench, ctx) {
       const { h, s, fmt, ui, nn } = Atlas;
-      let mode = "sg", seed = 1, sel = "國王", sample = 12, ana = 0, M = null, loop = null, P = null;
+      const { t } = ctx;
+      setCorpus(t("corpus"), t("keyWords"));
+      let mode = "sg", seed = 1, sel = K.king, sample = 12, ana = 0, M = null, loop = null, P = null;
 
       bench.append(h("style", { text: `
         .wv-corpus { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 14px; }
@@ -112,29 +114,29 @@
         .wv-lab { stroke: var(--panel-2); }
       ` }));
 
-      const modeSeg = ui.seg({ label: "訓練方式", value: mode, options: [{ value: "sg", label: "スキップグラム（中間 → 周圍）" }, { value: "cbow", label: "CBOW（周圍 → 中間）" }], onChange: (v) => { mode = v; reset(); } });
-      const seedBtn = ui.btn("換一組初始值", () => { seed = (seed % 5) + 1; reset(); }, { sm: true });
-      const runBtn = ui.btn("▶ 開始訓練", () => { if (loop.running) loop.pause(); else loop.start(); render(); }, { primary: true });
-      const oneBtn = ui.btn("前進 1 エポック", () => { loop.pause(); if (M.ep < EPOCHS) M.epoch(); render(); });
-      const ffBtn = ui.btn("⏭ 快轉到結束", () => { loop.fastForward(); render(); });
+      const modeSeg = ui.seg({ label: t("modeLabel"), value: mode, options: [{ value: "sg", label: t("modeSg") }, { value: "cbow", label: t("modeCbow") }], onChange: (v) => { mode = v; reset(); } });
+      const seedBtn = ui.btn(t("btnSeed"), () => { seed = (seed % 5) + 1; reset(); }, { sm: true });
+      const runBtn = ui.btn(t("btnStart"), () => { if (loop.running) loop.pause(); else loop.start(); render(); }, { primary: true });
+      const oneBtn = ui.btn(t("btnStep"), () => { loop.pause(); if (M.ep < EPOCHS) M.epoch(); render(); });
+      const ffBtn = ui.btn(t("btnFF"), () => { loop.fastForward(); render(); });
 
       const status = h("div", { class: "status" }), corpus = h("div", { class: "wv-corpus" }), sampleCalc = h("div", { class: "calc" });
-      const mapSvg = s("svg", { viewBox: "0 0 380 320", role: "img", "aria-label": "詞向量投影到平面" }), lossSvg = s("svg", { role: "img", "aria-label": "損失" });
+      const mapSvg = s("svg", { viewBox: "0 0 380 320", role: "img", "aria-label": t("mapAria") }), lossSvg = s("svg", { role: "img", "aria-label": t("lossAria") });
       const nbCalc = h("div", { class: "calc" }), anaCalc = h("div", { class: "calc" }), note = h("p", { class: "note" });
-      const anaSeg = ui.seg({ value: ana, options: ANALOGY.map(([a, b, c], i) => ({ value: i, label: `${a} − ${b} + ${c}` })), onChange: (v) => { ana = v; renderAna(); } });
+      const anaSeg = ui.seg({ value: ana, options: ANALOGY.map(([a, b, c], i) => ({ value: i, label: t("anaOpt", { a, b, c }) })), onChange: (v) => { ana = v; renderAna(); } });
 
       bench.append(
         h("div", { class: "bench__row" }, modeSeg.el, seedBtn),
-        h("div", { class: "field" }, h("span", { class: "field__label" }, "語料（20 句，26 個詞）：點任一個詞，看它在訓練時變成什麼題目（窗口＝前後各 2 個詞）"), corpus),
+        h("div", { class: "field" }, h("span", { class: "field__label" }, t("corpusLabel", { s: SENT.length, v: NV })), corpus),
         sampleCalc,
         h("div", { class: "bench__row" }, runBtn, oneBtn, ffBtn),
         status,
         h("div", { class: "wv-row" },
-          h("div", { class: "wv-fig" }, h("div", { class: "wv-cap" }, "8 維的詞向量投影到平面（點一個詞看它最相近的詞）"), mapSvg,
-            h("div", { class: "wv-key", html: `<span><i style="background:var(--pos)"></i>人</span><span><i style="background:var(--hot)"></i>動物</span><span><i style="background:var(--ok)"></i>食物・飲料</span><span><i style="background:var(--muted)"></i>其他</span>` })),
-          h("div", { class: "wv-fig", style: { flex: "1 1 280px" } }, h("div", { class: "wv-cap" }, "平均損失（猜周圍詞的 −ln 機率）"), lossSvg)),
-        h("div", { class: "field" }, h("span", { class: "field__label", html: `和「<b class="wv-selname"></b>」最相近的詞（<span class="jp">コサイン類似度</span>，cosine similarity，1＝方向完全相同、0＝無關）` }), nbCalc),
-        h("div", { class: "field" }, h("span", { class: "field__label" }, "向量的加減（類推）"), anaSeg.el, anaCalc),
+          h("div", { class: "wv-fig" }, h("div", { class: "wv-cap" }, t("mapCap")), mapSvg,
+            h("div", { class: "wv-key", html: [["p", "groupP"], ["a", "groupA"], ["f", "groupF"], ["o", "groupO"]].map(([g, k]) => `<span><i style="background:${GCOL[g]}"></i>${t(k)}</span>`).join("") })),
+          h("div", { class: "wv-fig", style: { flex: "1 1 280px" } }, h("div", { class: "wv-cap" }, t("lossCap")), lossSvg)),
+        h("div", { class: "field" }, h("span", { class: "field__label", html: t("nbLabel", { w: `<b class="wv-selname"></b>` }) }), nbCalc),
+        h("div", { class: "field" }, h("span", { class: "field__label" }, t("anaLabel")), anaSeg.el, anaCalc),
         note);
 
       /* ---------- 語料 ---------- */
@@ -157,14 +159,15 @@
       function renderSample() {
         const S = SAMPLES[sample], w = VOC[S.c], ctxW = S.ctx.map((k) => VOC[k]);
         wordBtns.forEach(({ b, si, i }) => { b.classList.toggle("c", si === S.si && i === S.i); b.classList.toggle("x", si === S.si && Math.abs(i - S.i) <= WIN && i !== S.i); });
+        const guess = `<span class="k">${t("randomNote", { v: NV, p: fmt(100 / NV, 1) })}</span>`;
         if (mode === "sg") {
           const p = M.predict([S.c]).p;
-          sampleCalc.innerHTML = row("スキップグラム的題目", `輸入「${w}」的向量 → 要猜出窗口內的 ${ctxW.length} 個詞（每個詞各算一次損失）`) +
-            row("目前的模型", ctxW.map((c) => `P(${c} | ${w}) = <span class="hl">${pct(p[ID[c]])}</span>`).join("　") + `　<span class="k">（亂猜是 1/26 ≈ 3.8%）</span>`);
+          sampleCalc.innerHTML = row(t("sampleSgK"), t("sampleSg", { w, n: ctxW.length })) +
+            row(t("modelK"), ctxW.map((c) => `P(${c} | ${w}) = <span class="hl">${pct(p[ID[c]])}</span>`).join("　") + "　" + guess);
         } else {
-          const p = M.predict(S.ctx).p;
-          sampleCalc.innerHTML = row("CBOW 的題目", `把窗口內「${ctxW.join("、")}」的向量平均 → 要猜出中間的「${w}」`) +
-            row("目前的模型", `P(${w} | ${ctxW.join("、")}) = <span class="hl">${pct(p[S.c])}</span>　<span class="k">（亂猜是 1/26 ≈ 3.8%）</span>`);
+          const p = M.predict(S.ctx).p, cw = ctxW.join(t("listSep"));
+          sampleCalc.innerHTML = row(t("sampleCbowK"), t("sampleCbow", { ctx: cw, w })) +
+            row(t("modelK"), `P(${w} | ${cw}) = <span class="hl">${pct(p[S.c])}</span>　` + guess);
         }
       }
 
@@ -202,35 +205,35 @@
 
       function render() {
         renderSample(); drawMap();
-        nn.lineChart(lossSvg, { W: 340, H: 200, xMax: EPOCHS, yMin: 0, yMax: 3.5, xLabel: "エポック", series: [{ pts: [[0, M.loss0], ...M.loss], color: "var(--hot)" }] });
-        runBtn.textContent = loop.running ? "❚❚ 暫停" : M.ep >= EPOCHS ? "✓ 訓練完成" : M.ep ? "▶ 繼續訓練" : "▶ 開始訓練";
+        nn.lineChart(lossSvg, { W: 340, H: 200, xMax: EPOCHS, yMin: 0, yMax: 3.5, xLabel: t("epochAxis"), series: [{ pts: [[0, M.loss0], ...M.loss], color: "var(--hot)" }] });
+        runBtn.textContent = t(loop.running ? "btnPause" : M.ep >= EPOCHS ? "btnDone" : M.ep ? "btnContinue" : "btnStart");
         runBtn.disabled = oneBtn.disabled = ffBtn.disabled = M.ep >= EPOCHS;
-        const pairs = [["國王", "王后"], ["貓", "狗"], ["男人", "女人"], ["魚", "肉"]];
+        const pairs = [[K.king, K.queen], [K.cat, K.dog], [K.man, K.woman], [K.fish, K.meat]];
         const okPairs = pairs.filter(([a, b]) => neighbors(M.Win, a, 1)[0][0] === b && neighbors(M.Win, b, 1)[0][0] === a);
         const curLoss = M.ep ? M.loss[M.loss.length - 1][1] : M.loss0;
         let kd = "info", txt;
-        if (!M.ep) txt = `還沒訓練：詞向量是隨機的小數字，平面上的位置沒有意義，平均損失 ${fmt(M.loss0, 2)}（約等於亂猜的 ln 26 ≈ 3.26）。按「▶ 開始訓練」跑 ${EPOCHS} エポック（約 3 秒）`;
+        if (!M.ep) txt = t("statusStart", { loss: fmt(M.loss0, 2), v: NV, ln: fmt(Math.log(NV), 2), ep: EPOCHS });
         else {
-          txt = `第 ${M.ep} エポック${loop.running ? "（訓練中）" : ""}：平均損失 ${fmt(curLoss, 2)}；` + (okPairs.length ? `互為最相近的詞：${okPairs.map((p) => p.join("↔")).join("、")}` : "還沒有哪一對詞互為最相近");
+          const found = okPairs.length ? t("statusPairs", { list: okPairs.map((p) => p.join("↔")).join(t("listSep")) }) : t("statusNoPairs");
+          txt = t(loop.running ? "statusEpRunning" : "statusEp", { ep: M.ep, loss: fmt(curLoss, 2), found });
           const miss = pairs.filter((p) => !okPairs.includes(p));
-          if (M.ep >= EPOCHS) { kd = miss.length ? "warn" : "ok"; if (miss.length) txt += `；${miss.map((p) => p.join("、")).join("、")}還沒配成一對（${mode === "cbow" ? "CBOW 在這麼小的語料上比較不穩定" : "可以換一組初始值比較"}）`; }
+          if (M.ep >= EPOCHS) { kd = miss.length ? "warn" : "ok"; if (miss.length) txt += t("statusMiss", { list: miss.map((p) => p.join(t("listSep"))).join(t("listSep")), why: t(mode === "cbow" ? "whyCbow" : "whySeed") }); }
         }
         status.className = "status status--" + kd; status.textContent = txt;
         bench.querySelector(".wv-selname").textContent = sel;
-        const nbs = neighbors(M.Win, sel, 5), oh = `<span class="k">若用ワンホットベクトル：「${sel}」和任何其他詞的コサイン類似度都是 0</span>`;
-        nbCalc.innerHTML = row("向量", `「${sel}」= [${M.Win[ID[sel]].map((v) => fmt(v, 2)).join(", ")}]`) +
-          row("最相近", nbs.map(([w, c], i) => `${i === 0 ? "<span class=\"hl\">" : ""}${w} ${fmt(c, 2)}${i === 0 ? "</span>" : ""}`).join("　")) + `<span class="calc-row">${oh}</span>`;
+        const nbs = neighbors(M.Win, sel, 5), oh = `<span class="k">${t("oneHot", { w: sel })}</span>`;
+        nbCalc.innerHTML = row(t("nbVecK"), `${t("quoted", { w: sel })} = [${M.Win[ID[sel]].map((v) => fmt(v, 2)).join(", ")}]`) +
+          row(t("nbTopK"), nbs.map(([w, c], i) => `${i === 0 ? "<span class=\"hl\">" : ""}${w} ${fmt(c, 2)}${i === 0 ? "</span>" : ""}`).join("　")) + `<span class="calc-row">${oh}</span>`;
         renderAna();
       }
       function renderAna() {
-        const [a, b, c] = ANALOGY[ana], r = analogy(M.Win, ANALOGY[ana]);
-        const want = { 0: "王后", 1: "女人", 2: "國王" }[ana];
-        anaCalc.innerHTML = row(`「${a}」−「${b}」+「${c}」`, `= [${r.v.map((v) => fmt(v, 2)).join(", ")}]`) +
-          row("最接近的詞（不算題目裡的三個）", r.list.map(([w, cc], i) => `${i === 0 ? "<span class=\"hl\">" : ""}${w} ${fmt(cc, 2)}${i === 0 ? "</span>" : ""}`).join("　")) +
-          row("判讀", !M.ep ? "還沒訓練，結果沒有意義" : r.list[0][0] === want ? `答對：最接近「${want}」` : `目前最接近的是「${r.list[0][0]}」，還不是「${want}」`);
+        const [a, b, c, want] = ANALOGY[ana], r = analogy(M.Win, ANALOGY[ana]);
+        anaCalc.innerHTML = row(t("anaRowK", { a, b, c }), `= [${r.v.map((v) => fmt(v, 2)).join(", ")}]`) +
+          row(t("anaTopK"), r.list.map(([w, cc], i) => `${i === 0 ? "<span class=\"hl\">" : ""}${w} ${fmt(cc, 2)}${i === 0 ? "</span>" : ""}`).join("　")) +
+          row(t("anaJudgeK"), !M.ep ? t("anaUntrained") : r.list[0][0] === want ? t("anaOk", { w: want }) : t("anaNot", { got: r.list[0][0], w: want }));
       }
 
-      note.innerHTML = `這一頁的語料、維數（8 維）都刻意做得很小；真實的 word2vec 用數十億詞的語料、100〜300 維，而且為了省計算，不對全部詞算 softmax，改用負例抽樣（negative sampling）等近似。平面圖是把 8 維投影到前兩個主成分（見 <a href="#pca">主成分分析</a>），距離只是近似，相似度一律用原本的 8 維計算。スキップグラム（<span class="en">skip-gram</span>）在小語料、稀有詞上通常較好；<span class="jp">CBOW</span>（<span class="en">continuous bag-of-words</span>）計算較快。fastText 把詞再拆成更小的字元片段來學，沒看過的詞也能組出向量；word2vec 一個詞只有一個向量，ELMo、BERT 則依上下文給同一個詞不同的向量。把整份文件看成「各詞出現次數」的 BoW（Bag-of-Words）、以及加權的 TF-IDF，都是更早的、不考慮詞義相近的表示法。`;
+      note.innerHTML = t("note");
 
       reset();
       ctx.onTheme(render);

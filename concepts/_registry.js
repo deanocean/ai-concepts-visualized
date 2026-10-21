@@ -51,15 +51,15 @@ Atlas.registry(
     { id: "resnet", area: "cnn", sec: "§21", en: "Skip Connection", added: true, file: "concepts/resnet.js", i18n: true },
 
     /* 序列與語言 */
-    { id: "rnn", area: "seq", sec: "§22", en: "RNN & Vanishing Gradient", file: "concepts/rnn-vanishing.js" },
-    { id: "lstm", area: "seq", sec: "§22", en: "LSTM Gates", file: "concepts/lstm.js" },
-    { id: "teacher", area: "seq", sec: "§22", en: "Teacher Forcing", added: true, file: "concepts/teacher.js" },
-    { id: "seq2seq", area: "seq", sec: "§23", en: "Seq2Seq & Source-Target Attention", file: "concepts/seq2seq.js" },
-    { id: "selfatt", area: "seq", sec: "§23", en: "Self-Attention", file: "concepts/self-attention.js" },
-    { id: "mha", area: "seq", sec: "§23", en: "Multi-Head Attention", added: true, file: "concepts/mha.js" },
-    { id: "posenc", area: "seq", sec: "§23", en: "Positional Encoding", file: "concepts/posenc.js" },
-    { id: "transformer", area: "seq", sec: "§23", en: "Transformer", file: "concepts/transformer.js" },
-    { id: "w2v", area: "seq", sec: "§27", en: "Word Embedding (word2vec)", file: "concepts/w2v.js", deps: NN },
+    { id: "rnn", area: "seq", sec: "§22", en: "RNN & Vanishing Gradient", file: "concepts/rnn-vanishing.js", i18n: true },
+    { id: "lstm", area: "seq", sec: "§22", en: "LSTM Gates", file: "concepts/lstm.js", i18n: true },
+    { id: "teacher", area: "seq", sec: "§22", en: "Teacher Forcing", added: true, file: "concepts/teacher.js", i18n: true },
+    { id: "seq2seq", area: "seq", sec: "§23", en: "Seq2Seq & Source-Target Attention", file: "concepts/seq2seq.js", i18n: true },
+    { id: "selfatt", area: "seq", sec: "§23", en: "Self-Attention", file: "concepts/self-attention.js", i18n: true },
+    { id: "mha", area: "seq", sec: "§23", en: "Multi-Head Attention", added: true, file: "concepts/mha.js", i18n: true },
+    { id: "posenc", area: "seq", sec: "§23", en: "Positional Encoding", file: "concepts/posenc.js", i18n: true },
+    { id: "transformer", area: "seq", sec: "§23", en: "Transformer", file: "concepts/transformer.js", i18n: true },
+    { id: "w2v", area: "seq", sec: "§27", en: "Word Embedding (word2vec)", file: "concepts/w2v.js", deps: NN, i18n: true },
 
     /* 生成模型 */
     { id: "ae", area: "gen", sec: "§24", en: "Autoencoder", file: "concepts/ae.js", deps: NN },
