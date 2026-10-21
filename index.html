@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AI 抽象概念互動圖解集</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="assets/atlas.css">
+<script>/* 先套用上次手動選的深淺色，避免閃一下 */try{var t=localStorage.getItem("atlas-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+
+<!--
+  AI 抽象概念互動圖解集（G検定 / JDLA シラバス2024 第1.4版）
+  檔案結構：
+    index.html                 頁面骨架（本檔）
+    assets/atlas.css           全站樣式與色彩 token（深淺色）
+    assets/atlas.js            核心：路由、導覽、共用 UI 元件、按需載入概念模組
+    assets/nn.js               生成模型、強化學習、word2vec 各頁共用：亂數、即時訓練迴圈、折線圖等（registry 的 deps）
+    concepts/_registry.js      概念清單（分區、シラバス節號、對應模組檔）
+    concepts/<id>.js           每個概念一個檔，呼叫 Atlas.define(id, {...})
+  新增概念：寫 concepts/<id>.js，並在 _registry.js 該概念填上 file。
+-->
+
+<div class="app" id="app">
+  <header class="topbar">
+    <button class="topbar__menu" id="menuBtn" type="button" aria-controls="sidebar" aria-expanded="false">
+      <span class="burger" aria-hidden="true"></span><span>目錄</span>
+    </button>
+    <a class="brand" href="#">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__name">AI 抽象概念互動圖解集</span>
+    </a>
+    <div class="topbar__end">
+      <span class="topbar__meta">G検定 シラバス2024 第1.4版</span>
+      <div class="theme-sw" id="themeSw" role="group" aria-label="明暗模式">
+        <button type="button" data-theme-set="light" aria-label="淺色模式" title="淺色模式">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
+        </button>
+        <button type="button" data-theme-set="dark" aria-label="深色模式" title="深色模式">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" id="sidebar" aria-label="概念目錄"></nav>
+    <div class="scrim" id="scrim" hidden></div>
+    <main class="main" id="main" tabindex="-1"></main>
+  </div>
+</div>
+
+<script src="assets/atlas.js"></script>
+<script src="concepts/_registry.js"></script>
+
+
+
+</body></html>
