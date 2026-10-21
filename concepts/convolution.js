@@ -1,26 +1,25 @@
-/* 畳み込み（シラバス §18）
-   7×7 入力 × 3×3 フィルタ，可調ストライド／パディング，逐格計算特徴マップ */
+/* 卷積／畳み込み（シラバス §18）
+   7×7 輸入 × 3×3 濾波器，可調步幅／填充，逐格計算特徵圖。
+   文字在 locales/zh/conv.js、locales/ja/conv.js。 */
 Atlas.define("conv", {
-  lead: `<p>辨識圖像時，關鍵是局部的形狀（邊、角、線條），而同一種形狀可能出現在圖上任何位置。<span class="jp">畳み込み</span>（卷積，<span class="en">convolution</span>）拿一個 3×3 的小數字表在圖上滑動，每停一處就算出「這裡和這個形狀有多像」。</p>`,
-  closing: `濾波器的數字和局部圖樣越吻合，相乘再加總的值就越大，特徴マップ上那一格就越深。同一組 9 個數字走遍整張圖，所以參數很少，形狀出現在哪裡都抓得到；CNN 訓練時學的，就是這些數字。`,
-
   mount(bench, ctx) {
     const { h, fmt, fmtP, ui } = Atlas;
+    const { t } = ctx;
     const N = 7, K = 3;
 
     const IMAGES = {
-      bar:    { label: "縱條", px: (r, c) => c === 2 || c === 3 },
-      ring:   { label: "方框", px: (r, c) => r >= 1 && r <= 5 && c >= 1 && c <= 5 && (r === 1 || r === 5 || c === 1 || c === 5) },
-      diag:   { label: "斜線", px: (r, c) => r === c },
-      ell:    { label: "L 形", px: (r, c) => (c === 1 && r >= 1 && r <= 5) || (r === 5 && c >= 1 && c <= 5) },
-      blank:  { label: "空白", px: () => false },
+      bar:    { label: t("imgBar"), px: (r, c) => c === 2 || c === 3 },
+      ring:   { label: t("imgRing"), px: (r, c) => r >= 1 && r <= 5 && c >= 1 && c <= 5 && (r === 1 || r === 5 || c === 1 || c === 5) },
+      diag:   { label: t("imgDiag"), px: (r, c) => r === c },
+      ell:    { label: t("imgEll"), px: (r, c) => (c === 1 && r >= 1 && r <= 5) || (r === 5 && c >= 1 && c <= 5) },
+      blank:  { label: t("imgBlank"), px: () => false },
     };
     const FILTERS = {
-      vert:   { label: "縱向邊緣", w: [[1, 0, -1], [1, 0, -1], [1, 0, -1]] },
-      horz:   { label: "橫向邊緣", w: [[1, 1, 1], [0, 0, 0], [-1, -1, -1]] },
-      diag:   { label: "斜線（＼）", w: [[1, -1, -1], [-1, 1, -1], [-1, -1, 1]] },
-      blur:   { label: "平均（模糊）", w: [[1, 1, 1], [1, 1, 1], [1, 1, 1]].map((r) => r.map(() => 1 / 9)) },
-      custom: { label: "自訂", w: [[0, 0, 0], [0, 1, 0], [0, 0, 0]] },
+      vert:   { label: t("fVert"), w: [[1, 0, -1], [1, 0, -1], [1, 0, -1]] },
+      horz:   { label: t("fHorz"), w: [[1, 1, 1], [0, 0, 0], [-1, -1, -1]] },
+      diag:   { label: t("fDiag"), w: [[1, -1, -1], [-1, 1, -1], [-1, -1, 1]] },
+      blur:   { label: t("fBlur"), w: [[1, 1, 1], [1, 1, 1], [1, 1, 1]].map((r) => r.map(() => 1 / 9)) },
+      custom: { label: t("fCustom"), w: [[0, 0, 0], [0, 1, 0], [0, 0, 0]] },
     };
 
     let imgKey = "bar", fKey = "vert", S = 1, P = 0;
@@ -70,20 +69,20 @@ Atlas.define("conv", {
     ` }));
 
     /* ---------- controls ---------- */
-    const imgSeg = ui.seg({ label: "入力圖像（點格子可塗改）", value: imgKey, options: Object.entries(IMAGES).map(([v, o]) => ({ value: v, label: o.label })),
+    const imgSeg = ui.seg({ label: t("imgLabel"), value: imgKey, options: Object.entries(IMAGES).map(([v, o]) => ({ value: v, label: o.label })),
       onChange: (v) => { imgKey = v; img = makeImg(v); render(); } });
-    const fSeg = ui.seg({ label: `<span class="jp">フィルタ</span>（濾波器，<span class="en">filter</span>）`, value: fKey, options: Object.entries(FILTERS).map(([v, o]) => ({ value: v, label: o.label })),
+    const fSeg = ui.seg({ label: t("filterLabel"), value: fKey, options: Object.entries(FILTERS).map(([v, o]) => ({ value: v, label: o.label })),
       onChange: (v) => { fKey = v; filt = FILTERS[v].w.map((r) => r.slice()); render(); } });
-    const sSeg = ui.seg({ label: `<span class="jp">ストライド</span>（步幅，<span class="en">stride</span>）`, value: S, options: [{ value: 1, label: "1 格" }, { value: 2, label: "2 格" }],
+    const sSeg = ui.seg({ label: t("strideLabel"), value: S, options: [{ value: 1, label: t("stride1") }, { value: 2, label: t("stride2") }],
       onChange: (v) => { S = v; done = Math.min(done, outN() ** 2); done = 0; render(); } });
-    const pSeg = ui.seg({ label: `<span class="jp">パディング</span>（填充，<span class="en">padding</span>）`, value: P, options: [{ value: 0, label: "0（不補）" }, { value: 1, label: "1（外圍補 0）" }],
+    const pSeg = ui.seg({ label: t("padLabel"), value: P, options: [{ value: 0, label: t("pad0") }, { value: 1, label: t("pad1") }],
       onChange: (v) => { P = v; done = 0; render(); } });
 
     const player = ui.player(ctx, () => { if (done >= outN() ** 2) return false; done++; render(); return done < outN() ** 2; }, 600);
-    const prevBtn = ui.btn("◀ 上一格", () => { player.pause(); if (done > 0) { done--; render(); } });
-    const nextBtn = ui.btn("下一格 ▶", () => { player.pause(); if (done < outN() ** 2) { done++; render(); } }, { primary: true });
-    const allBtn = ui.btn("全部算完", () => { player.pause(); done = outN() ** 2; render(); });
-    const clrBtn = ui.btn("清空", () => { player.pause(); done = 0; render(); });
+    const prevBtn = ui.btn(t("btnPrev"), () => { player.pause(); if (done > 0) { done--; render(); } });
+    const nextBtn = ui.btn(t("btnNext"), () => { player.pause(); if (done < outN() ** 2) { done++; render(); } }, { primary: true });
+    const allBtn = ui.btn(t("btnAll"), () => { player.pause(); done = outN() ** 2; render(); });
+    const clrBtn = ui.btn(t("btnClear"), () => { player.pause(); done = 0; render(); });
 
     const stage = h("div", { class: "cv-stage" });
     const calcBox = h("div", { class: "calc cv-calc", style: { whiteSpace: "normal" } });
@@ -115,7 +114,7 @@ Atlas.define("conv", {
       for (let r = 0; r < Np; r++) for (let c = 0; c < Np; c++) {
         const v = padded(r, c);
         if (v === null) { inGrid.append(h("div", { class: "cv-cell pad" }, "0")); continue; }
-        const b = h("button", { type: "button", class: "cv-cell" + (v ? " on" : ""), "aria-label": `入力第 ${r - P + 1} 列第 ${c - P + 1} 行，值 ${v}` }, String(v));
+        const b = h("button", { type: "button", class: "cv-cell" + (v ? " on" : ""), "aria-label": t("cellIn", { r: r - P + 1, c: c - P + 1, v }) }, String(v));
         b.addEventListener("click", () => { img[r - P][c - P] ^= 1; imgSeg.set(null); render(); });
         inGrid.append(b);
       }
@@ -129,7 +128,7 @@ Atlas.define("conv", {
       // filter
       const fGrid = h("div", { class: "cv-grid cv-filter", style: { gridTemplateColumns: `repeat(3, var(--cs))` } });
       filt.forEach((row, i) => row.forEach((v, j) => {
-        const b = h("button", { type: "button", class: "cv-cell", style: { background: Atlas.divColor(v, 1.2) }, "aria-label": `フィルタ第 ${i + 1} 列第 ${j + 1} 行，值 ${fmtW(v)}，點一下改變` }, fmtW(v));
+        const b = h("button", { type: "button", class: "cv-cell", style: { background: Atlas.divColor(v, 1.2) }, "aria-label": t("cellFilter", { r: i + 1, c: j + 1, v: fmtW(v) }) }, fmtW(v));
         b.addEventListener("click", () => {
           if (fKey !== "custom") { filt = isInt() ? filt.map((r) => r.slice()) : filt.map((r) => r.map(() => 0)); fKey = "custom"; fSeg.set("custom"); }
           const cyc = { 0: 1, 1: -1, "-1": 0 };
@@ -148,39 +147,37 @@ Atlas.define("conv", {
         const v = isDone ? cellAt(k).sum : null;
         const b = h("button", { type: "button", class: "cv-cell" + (isDone ? "" : " empty") + (k === curIdx ? " cur" : ""),
           style: isDone ? { background: Atlas.divColor(v, max), color: Math.abs(v) / max > 0.55 ? "var(--panel)" : "var(--ink)" } : null,
-          "aria-label": `特徴マップ第 ${Math.floor(k / n) + 1} 列第 ${(k % n) + 1} 行` }, isDone ? fmtO(v) : "·");
+          "aria-label": t("cellOut", { r: Math.floor(k / n) + 1, c: (k % n) + 1 }) }, isDone ? fmtO(v) : "·");
         b.addEventListener("click", () => { player.pause(); done = k + 1; render(); });
         oGrid.append(b);
       }
 
       stage.replaceChildren(
-        h("div", { class: "cv-block" }, h("div", { class: "cv-cap", html: `<b>入力</b> ${N}×${N}${P ? "（虛線＝補的 0）" : ""}` }), inGrid),
+        h("div", { class: "cv-block" }, h("div", { class: "cv-cap", html: t("capIn", { n: N }) + (P ? t("capInPad") : "") }), inGrid),
         h("div", { class: "cv-op", "aria-hidden": "true" }, "✱"),
-        h("div", { class: "cv-block" }, h("div", { class: "cv-cap", html: `<b>フィルタ</b> 3×3<br>點格子可改數字` }), fGrid),
+        h("div", { class: "cv-block" }, h("div", { class: "cv-cap", html: t("capFilter") }), fGrid),
         h("div", { class: "cv-op", "aria-hidden": "true" }, "="),
-        h("div", { class: "cv-block" }, h("div", { class: "cv-cap", html: `<b><span class="jp">特徴マップ</span></b>（特徵圖，<span class="en">feature map</span>）${n}×${n}<br>點格子可跳到那一格` }), oGrid),
+        h("div", { class: "cv-block" }, h("div", { class: "cv-cap", html: t("capOut", { n }) }), oGrid),
       );
 
       // calc
       if (!cur) {
-        calcBox.innerHTML = `<span class="k">按「下一格」：濾波器蓋住左上角 3×3，對應格相乘後加總，結果寫進特徴マップ第一格。</span>`;
+        calcBox.innerHTML = `<span class="k">${t("calcStart")}</span>`;
       } else {
-        const prod = h("div", { class: "cv-prod" }, ...cur.terms.map((t) =>
-          h("span", { class: t.p !== 0 ? "nz" : "" }, `${t.a}×${Number.isInteger(t.w) ? fmtP(t.w, 0) : "1/9"}`)));
-        const nonzero = cur.terms.filter((t) => t.p !== 0);
-        const expr = nonzero.length ? nonzero.map((t) => (isInt() ? fmtP(t.p, 0) : "1/9")).join(" + ") : "0";
+        const prod = h("div", { class: "cv-prod" }, ...cur.terms.map((x) =>
+          h("span", { class: x.p !== 0 ? "nz" : "" }, `${x.a}×${Number.isInteger(x.w) ? fmtP(x.w, 0) : "1/9"}`)));
+        const nonzero = cur.terms.filter((x) => x.p !== 0);
+        const expr = nonzero.length ? nonzero.map((x) => (isInt() ? fmtP(x.p, 0) : "1/9")).join(" + ") : "0";
         calcBox.replaceChildren(
-          h("span", { class: "k" }, `第 ${cur.or + 1} 列第 ${cur.oc + 1} 格：入力 × フィルタ（逐格相乘）`),
+          h("span", { class: "k" }, t("calcCellK", { r: cur.or + 1, c: cur.oc + 1 })),
           prod,
-          h("span", { html: `<span class="k">加總</span> ${expr} = <span class="hl">${fmtO(cur.sum)}</span>` }),
+          h("span", { html: `<span class="k">${t("calcSumK")}</span> ${expr} = <span class="hl">${fmtO(cur.sum)}</span>` }),
         );
       }
-      sizeLine.innerHTML = `<span class="k">特徴マップ邊長</span> = (入力 ${N} + 2×パディング ${P} − フィルタ ${K}) ÷ ストライド ${S} + 1 = (${N + 2 * P - K}) ÷ ${S} + 1 = <b>${n}</b>`;
+      sizeLine.innerHTML = `<span class="k">${t("sizeK")}</span> ` + t("size", { n: N, p: P, k: K, s: S, a: N + 2 * P - K, out: n });
       edgeLine.hidden = !(fKey === "vert" || fKey === "horz");
-      edgeLine.innerHTML = fKey === "horz"
-        ? `這個濾波器上排是 +1、下排是 −1：遇到「上面有、下面沒有」的邊得正數（藍），「上面沒有、下面有」得負數（紅）；沒有邊的平坦處正負抵消，得 0。`
-        : `這個濾波器左行是 +1、右行是 −1：遇到「左邊有、右邊沒有」的邊得正數（藍），「左邊沒有、右邊有」得負數（紅）；沒有邊的平坦處正負抵消，得 0。`;
-      paramLine.innerHTML = `這個濾波器只有 <b class="mono">9</b> 個權重，走遍整張圖都用同一組。若改用全結合層，讓 ${n}×${n} 個輸出各自連到 ${N}×${N} 個輸入，需要 ${N * N} × ${total} = <b class="mono">${(N * N * total).toLocaleString()}</b> 個權重。フィルタ也叫<span class="jp">カーネル</span>（kernel）。接下來常接 <a href="#pool">プーリング</a>；擴大看得到的範圍見 <a href="#dilated">受容野と Dilated Convolution</a>，減少計算量見 <a href="#dwsep">Depthwise Separable Convolution</a>。`;
+      edgeLine.innerHTML = t(fKey === "horz" ? "edgeHorz" : "edgeVert");
+      paramLine.innerHTML = t("param", { outN: n, inN: N, inCells: N * N, outCells: total, big: (N * N * total).toLocaleString("en-US") });
       prevBtn.disabled = done === 0;
       nextBtn.disabled = done >= total;
     }

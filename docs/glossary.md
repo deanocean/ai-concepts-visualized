@@ -45,6 +45,7 @@
 | 過擬合 | 過学習 | overfitting |
 | 正則化 | 正則化 | regularization |
 | 正規化層 | 正規化層 | normalization layer |
+| 批次正規化 | バッチ正規化 | batch normalization |
 
 ## 卷積與影像
 
@@ -62,7 +63,14 @@
 | 感受野 | 受容野 | receptive field |
 | 空洞卷積 | Dilated Convolution | dilated convolution |
 | 深度可分離卷積 | Depthwise Separable Convolution | depthwise separable convolution |
+| 填充 | パディング | padding |
+| 卷積核 | カーネル | kernel |
+| 空洞卷積（另一個英文名） | Atrous Convolution | atrous convolution |
+| 語意分割 | セマンティックセグメンテーション | semantic segmentation |
+| 逐深度卷積 | Depthwise Convolution | depthwise convolution |
+| 逐點卷積 | Pointwise Convolution | pointwise convolution |
 | 跳躍連接 | スキップ結合 | skip connection |
+| 殘差 | 残差 | residual |
 
 ## 序列與語言
 

@@ -44,11 +44,11 @@ Atlas.registry(
     { id: "norm", area: "learn", sec: "§19", en: "Normalization Layers", file: "concepts/norm.js" },
 
     /* 卷積與影像 */
-    { id: "conv", area: "cnn", sec: "§18", en: "Convolution", file: "concepts/convolution.js" },
+    { id: "conv", area: "cnn", sec: "§18", en: "Convolution", file: "concepts/convolution.js", i18n: true },
     { id: "pool", area: "cnn", sec: "§20", en: "Pooling", file: "concepts/pooling.js", i18n: true },
-    { id: "dilated", area: "cnn", sec: "§18", en: "Receptive Field & Dilated Conv.", file: "concepts/dilated.js" },
-    { id: "dwsep", area: "cnn", sec: "§18", en: "Depthwise Separable Conv.", added: true, file: "concepts/dwsep.js" },
-    { id: "resnet", area: "cnn", sec: "§21", en: "Skip Connection", added: true, file: "concepts/resnet.js" },
+    { id: "dilated", area: "cnn", sec: "§18", en: "Receptive Field & Dilated Conv.", file: "concepts/dilated.js", i18n: true },
+    { id: "dwsep", area: "cnn", sec: "§18", en: "Depthwise Separable Conv.", added: true, file: "concepts/dwsep.js", i18n: true },
+    { id: "resnet", area: "cnn", sec: "§21", en: "Skip Connection", added: true, file: "concepts/resnet.js", i18n: true },
 
     /* 序列與語言 */
     { id: "rnn", area: "seq", sec: "§22", en: "RNN & Vanishing Gradient", file: "concepts/rnn-vanishing.js" },

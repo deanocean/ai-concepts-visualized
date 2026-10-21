@@ -110,7 +110,7 @@
 
   /** 分段切換鈕 */
   Atlas.ui.seg = ({ options, value, onChange, label, id }) => {
-    const wrap = h("div", { class: "seg", role: "group", "aria-label": label || null, id });
+    const wrap = h("div", { class: "seg", role: "group", "aria-label": label ? label.replace(/<[^>]+>/g, "") : null, id });
     const btns = options.map((o) => {
       const b = h("button", { type: "button", "aria-pressed": String(o.value === value) }, o.label);
       b.addEventListener("click", () => { api.set(o.value); onChange && onChange(o.value); });
