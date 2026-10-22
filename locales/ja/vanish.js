@@ -1,12 +1,13 @@
 /* 勾配消失問題（concepts/vanishing.js）の日本語テキスト
    - である調。key は locales/zh/vanish.js と一致させる
-   - Sigmoid・tanh・ReLU は関数名なのでプログラム側に置く */
+   - tanh・ReLU は関数名なのでプログラム側に置く。シグモイドだけは片仮名で書くため fnSigmoid に置く */
 Atlas.strings("ja", "vanish", {
   lead: `<p>層が多いほど、ネットワークが表現できるものは増える。しかし初期の深層ネットワークは、層を増やすと訓練できなくなった。原因は誤差逆伝播法にある。勾配は出力から入力側へ伝わる間、1 層通るごとにある数を掛けられ、前のほうの層に届くころにはほぼ 0 になってしまうことがある。するとそれらの層の重みはほとんど更新されない。これを<span class="term">勾配消失問題</span>（<span class="en">vanishing gradient problem</span>）という。</p>`,
   closing: `勾配は 1 層戻るごとに「重み × 活性化関数の傾き」を掛けられる。この数が 1 より小さければ、十数回掛けるうちに 0 に近づく（勾配消失）。1 より大きければ、掛けるほど大きくなる。これが<span class="term">勾配爆発問題</span>（<span class="en">exploding gradient</span>）である。対策は各層で掛ける数を 1 付近に保つことである。隠れ層に ReLU を使い、適切な重みの初期値と組み合わせるほか、<span class="term">スキップ結合</span>（<span class="en">skip connection</span>）や正規化層を使う。`,
 
   /* 操作 */
   fnLabel: "隠れ層の活性化関数",
+  fnSigmoid: "シグモイド",
   nLabel: "層の数",
   nFmt: "{n} 層",
   wLabel: "各層の重み w",

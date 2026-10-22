@@ -9,7 +9,7 @@ Atlas.define("vanish", {
     const { t } = ctx;
     const sigm = (x) => 1 / (1 + Math.exp(-x));
     const FN = {
-      sigmoid: { label: "Sigmoid", f: sigm, d: (z) => sigm(z) * (1 - sigm(z)), dTxt: "σ(z)(1 − σ(z))" },
+      sigmoid: { label: t("fnSigmoid"), f: sigm, d: (z) => sigm(z) * (1 - sigm(z)), dTxt: "σ(z)(1 − σ(z))" },
       tanh: { label: "tanh", f: Math.tanh, d: (z) => 1 - Math.tanh(z) ** 2, dTxt: "1 − tanh(z)²" },
       relu: { label: "ReLU", f: (z) => Math.max(0, z), d: (z) => (z > 0 ? 1 : 0), dTxt: "z > 0 ? 1 : 0" },
     };

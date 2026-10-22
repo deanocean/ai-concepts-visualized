@@ -1,12 +1,13 @@
 /* 梯度消失問題（concepts/vanishing.js）的中文文字
    - {name} 是程式帶入的值；HTML 只用在 lead、closing、note*、calc* 這類會以 HTML 顯示的項目
-   - Sigmoid、tanh、ReLU 是函數名，寫在程式裡 */
+   - tanh、ReLU 是函數名，寫在程式裡；Sigmoid 在日文寫成片假名，所以放在 fnSigmoid */
 Atlas.strings("zh", "vanish", {
   lead: `<p>層數越多，網路能表達的東西越多；但早期的深層網路，層一多就訓練不起來。原因出在反向傳播：梯度從輸出往前傳，每經過一層都要乘上一個數，傳到前面的層時可能小到幾乎是 0，那些層的權重就幾乎不會更新。這叫<span class="term">梯度消失問題</span>（<span class="en">vanishing gradient problem</span>）。</p>`,
   closing: `梯度每往前一層，就乘上「權重 × 激活函數的斜率」。這個數小於 1，乘十幾次就趨近 0（梯度消失）；大於 1，就越乘越大，稱為<span class="term">梯度爆炸</span>（<span class="en">exploding gradient</span>）。對策是讓每層乘的數保持在 1 附近：隱藏層改用 ReLU、配合適當的權重初始值，以及<span class="term">跳躍連接</span>（<span class="en">skip connection</span>）和正規化層。`,
 
   /* 控制項 */
   fnLabel: "隱藏層的激活函數",
+  fnSigmoid: "Sigmoid",
   nLabel: "層數",
   nFmt: "{n} 層",
   wLabel: "每層的權重 w",
