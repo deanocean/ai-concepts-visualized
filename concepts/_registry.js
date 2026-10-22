@@ -37,11 +37,11 @@ Atlas.registry(
     { id: "optim", area: "learn", sec: "§16", en: "Momentum & Adam", added: true, file: "concepts/optim.js", i18n: true },
     { id: "backprop", area: "learn", sec: "§15", en: "Backpropagation & Chain Rule", file: "concepts/backprop.js", i18n: true },
     { id: "vanish", area: "learn", sec: "§12・15", en: "Vanishing Gradient", file: "concepts/vanishing.js", i18n: true },
-    { id: "act", area: "learn", sec: "§12", en: "Activation Functions", file: "concepts/activation.js" },
-    { id: "loss", area: "learn", sec: "§13", en: "Loss Functions", added: true, file: "concepts/loss.js" },
-    { id: "overfit", area: "learn", sec: "§10・14", en: "Overfitting & Regularization", file: "concepts/overfitting.js" },
-    { id: "dropout", area: "learn", sec: "§14", en: "Dropout", file: "concepts/dropout.js" },
-    { id: "norm", area: "learn", sec: "§19", en: "Normalization Layers", file: "concepts/norm.js" },
+    { id: "act", area: "learn", sec: "§12", en: "Activation Functions", file: "concepts/activation.js", i18n: true },
+    { id: "loss", area: "learn", sec: "§13", en: "Loss Functions", added: true, file: "concepts/loss.js", i18n: true },
+    { id: "overfit", area: "learn", sec: "§10・14", en: "Overfitting & Regularization", file: "concepts/overfitting.js", i18n: true },
+    { id: "dropout", area: "learn", sec: "§14", en: "Dropout", file: "concepts/dropout.js", i18n: true },
+    { id: "norm", area: "learn", sec: "§19", en: "Normalization Layers", file: "concepts/norm.js", i18n: true },
 
     /* 卷積與影像 */
     { id: "conv", area: "cnn", sec: "§18", en: "Convolution", file: "concepts/convolution.js", i18n: true },

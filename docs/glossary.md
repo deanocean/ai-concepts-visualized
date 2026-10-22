@@ -104,6 +104,39 @@
 | 偏微分 | 偏微分 | partial derivative |
 | 偏置 | バイアス | bias |
 | 梯度消失問題 | 勾配消失問題 | vanishing gradient problem |
+| tanh 函數 | tanh 関数 | hyperbolic tangent |
+| ReLU 函數 | ReLU 関数 | rectified linear unit |
+| Leaky ReLU 函數 | Leaky ReLU 関数 | leaky ReLU |
+| 二元分類／多元分類 | 2 値分類／多クラス分類 | binary / multi-class classification |
+| 迴歸 | 回帰 | regression |
+| KL 散度 | KL 情報量（カルバック・ライブラー情報量） | KL divergence |
+| 熵 | エントロピー | entropy |
+| Contrastive Loss | Contrastive Loss | contrastive loss |
+| Triplet Loss | Triplet Loss | triplet loss |
+| 間隔（距離學習） | マージン | margin |
+| 距離學習 | 距離学習 | metric learning |
+| 嵌入 | 埋め込み | embedding |
+| 訓練誤差／驗證誤差 | 訓練誤差／検証誤差 | training / validation error |
+| L1／L2 正則化 | L1／L2 正則化 | L1 / L2 regularization |
+| L0 正則化 | L0 正則化 | L0 regularization |
+| 嶺迴歸 | リッジ回帰 | ridge regression |
+| 套索迴歸 | ラッソ回帰 | lasso regression |
+| 奧坎剃刀 | オッカムの剃刀 | Occam's razor |
+| 提前停止 | 早期終了 | early stopping |
+| 雙重下降 | 二重降下現象 | double descent |
+| Dropout | ドロップアウト | dropout |
+| 丟棄率 | ドロップアウト率 | dropout rate |
+| Inverted Dropout | Inverted Dropout | inverted dropout |
+| 集成學習 | アンサンブル学習 | ensemble learning |
+| 子網路 | サブネットワーク | subnetwork |
+| 推論 | 推論 | inference |
+| 實例正規化 | インスタンス正規化 | instance normalization |
+| 組正規化 | グループ正規化 | group normalization |
+| 內部共變量偏移 | 内部共変量シフト | internal covariate shift |
+| 移動平均 | 移動平均 | moving average |
+| 變異數／標準差 | 分散／標準偏差 | variance / standard deviation |
+| 風格轉換 | スタイル変換 | style transfer |
+| 物體偵測 | 物体検出 | object detection |
 
 ## 卷積與影像
 

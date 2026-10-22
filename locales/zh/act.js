@@ -1,0 +1,73 @@
+/* 激活函數（concepts/activation.js）的中文文字
+   - {name} 是程式帶入的值；HTML 只用在 lead、closing、note*、calc* 這類會以 HTML 顯示的項目
+   - tanh、ReLU、Leaky ReLU 是函數名，寫在程式裡；Sigmoid 在日文寫成片假名，所以放在 fnSigmoid */
+Atlas.strings("zh", "act", {
+  lead: `<p>神經網路的每個神經元先算「加權和」，再把結果送進一個函數轉換，這個函數叫<span class="term">激活函數</span>（<span class="en">activation function</span>）。它解決兩件事：沒有它，疊再多層也只等於一條直線，畫不出曲線；而它的斜率，決定反向傳播時梯度能不能傳回前面的層。</p>`,
+  closing: `激活函數讓網路能表達曲線，但它的斜率會在反向傳播時被連乘：Sigmoid 的斜率最大只有 0.25、兩端趨近 0，層一深梯度就消失；ReLU 在正側斜率固定是 1，因此成為隱藏層的主流。輸出層則依任務選：二元分類用 Sigmoid，多元分類用 softmax。`,
+
+  /* 控制項 */
+  modeLabel: "看什麼",
+  modeShape: "形狀與斜率",
+  modeWhy: "為什麼要非線性",
+  modeSoft: "輸出層：softmax",
+
+  /* A. 形狀與斜率 */
+  fnLabel: "激活函數",
+  fnSigmoid: "Sigmoid",
+  maxdFmt: "{v}（{at}）",
+  xLabel: "輸入 x（加權和）",
+  svgShapeAria: "激活函數與它的斜率",
+  axisX: "輸入 x",
+  legendF: "函數 f(x)（輸出）",
+  legendD: "斜率 f′(x)（反向傳播時要乘的數）",
+  sZero: "x = {x}：斜率是 0，梯度傳到這裡就斷了，這個神經元學不動",
+  sFlat: "x = {x}：落在平坦區，斜率只剩 {d}，梯度幾乎傳不回去",
+  sOne: "x = {x}：斜率是 1，梯度原封不動傳回去",
+  sInfo: "x = {x}：輸出 {y}，斜率 {d}",
+  calcReluD: "f′(x) = x > 0 時 1，x < 0 時 0",
+  calcLeakyF: "f(x) = x > 0 時 x，x < 0 時 0.01x",
+  calcLeakyD: "f′(x) = x > 0 時 1，x < 0 時 0.01",
+  thFn: "函數",
+  thRange: "輸出範圍",
+  thMaxd: "最大斜率",
+  thSlopeAt: "x = {x} 的斜率",
+  noteSigmoid: `<span class="term">Sigmoid 函數</span>（<span class="en">sigmoid function</span>）把輸出壓在 0〜1，可以當成機率，所以常用在二元分類的輸出層。但斜率最大只有 0.25，|x| 一大就幾乎是 0；放在很多層的隱藏層裡，反向傳播每過一層梯度至少縮成四分之一。`,
+  noteTanh: `<span class="term">tanh 函數</span>（<span class="en">hyperbolic tangent</span>）形狀和 Sigmoid 一樣是 S 形，但輸出在 −1〜1、以 0 為中心，最大斜率是 1，比 Sigmoid 不容易讓梯度變小。兩端仍然平坦，|x| 大時斜率同樣趨近 0。`,
+  noteRelu: `<span class="term">ReLU 函數</span>（<span class="en">rectified linear unit</span>）正側斜率永遠是 1，梯度通過時不打折，計算也只要比大小，因此成為深層網路隱藏層的標準選擇。缺點是負側斜率為 0：輸入一直是負的神經元，梯度永遠是 0，再也學不動。`,
+  noteLeaky: `<span class="term">Leaky ReLU 函數</span>（<span class="en">leaky ReLU</span>）在負側留一個很小的斜率（常用 0.01），圖上看起來貼近 0，但不是 0，所以負側的神經元仍能收到一點梯度，避免 ReLU「學不動」的問題。`,
+  noteDrag: "　可以拖動滑桿，或直接點圖改變輸入 x。",
+
+  /* B. 為什麼要非線性 */
+  hidActLabel: "隱藏層的激活函數",
+  hidActNone: "無（直接輸出加權和）",
+  nLabel: "隱藏層神經元數",
+  nFmt: "{n} 個",
+  svgWhyAria: "用神經元組合出的函數與目標曲線",
+  legendTarget: "想學的曲線 y = sin x",
+  legendOut: "網路的輸出",
+  legendKink: "每個 ReLU 神經元的轉折點",
+  sRelu: "{n} 個 ReLU 神經元 → {n} 個轉折點的折線，均方誤差 {mse}",
+  sLinear: "{n} 個神經元都沒用：輸出還是一條直線，均方誤差 {mse}",
+  calcReluSum: "輸出 = c + Σ aᵢ × ReLU(x − bᵢ)",
+  calcEachK: "每個神經元",
+  calcEach: "在 x < bᵢ 時輸出 0、之後沿斜線上升；加起來，每過一個轉折點斜率就改變一次",
+  calcLinSum: "輸出 = c + Σ aᵢ × (x − bᵢ)",
+  calcLeftK: "整理後只剩",
+  calcLeft: "斜率 × x + 截距；最佳直線 = {line}",
+  calcSameK: "同樣的道理",
+  calcSame: "線性的層疊再多層，合起來仍是一個線性函數，等於只有一層",
+  noteWhy: `示範網路只有 1 個輸入、1 層隱藏層、1 個輸出；隱藏神經元 i 計算 ReLU(x − bᵢ)，轉折點 bᵢ 平均排開。輸出權重 aᵢ 和 c 是用最小平方法直接算出的最佳值（不是訓練過程），用來看「這個網路最多能畫出什麼形狀」。`,
+
+  /* C. softmax */
+  clsCat: "貓",
+  clsDog: "狗",
+  clsBird: "鳥",
+  zLabel: "「{c}」的分數 z<sub>{i}</sub>",
+  svgSoftAria: "分數經過 softmax 變成機率",
+  softHead: "分數 z → e^z → 除以總和 → 機率（三者加總 = 1）",
+  sBest: "機率最高：「{c}」 {p}%",
+  calcDenom: "分母 = {terms} = {sum}",
+  calcSumK: "加總",
+  calcSumNote: "（不四捨五入時剛好等於 1）",
+  noteSoft: `<span class="term">softmax 函數</span>（<span class="en">softmax function</span>）放在多元分類的輸出層：先取 e 的次方讓每個數都變成正數，再除以總和，所以每類都在 0〜1 之間、加起來剛好是 1。分數的大小順序不變，但差距會被放大：試著只把「貓」的分數加 1，看它的機率漲多少。二元分類只需要一個輸出時，用 Sigmoid 函數即可。輸出的機率接著用交叉熵算損失，見 <a href="#loss">損失函數</a>。`,
+});
