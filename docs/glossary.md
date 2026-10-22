@@ -27,6 +27,41 @@
 | k-means 分群 | k-means 法 | k-means clustering |
 | 主成分分析 | 主成分分析 | principal component analysis |
 | ROC 曲線 | ROC 曲線 | ROC curve |
+| 最大化間隔 | マージン最大化 | margin maximization |
+| 間隔 | マージン | margin |
+| 支援向量 | サポートベクター | support vector |
+| 硬間隔／軟間隔 | ハードマージン／ソフトマージン | hard / soft margin |
+| 鬆弛變數 | スラック変数 | slack variable |
+| 超參數 | ハイパーパラメータ | hyperparameter |
+| 核函數 | カーネル関数 | kernel function |
+| 高斯核（RBF 核） | ガウシアンカーネル（RBF カーネル） | Gaussian kernel |
+| SMO 演算法 | SMO 法 | sequential minimal optimization |
+| 分群 | クラスタリング | clustering |
+| 群 | クラスタ | cluster |
+| 手肘法 | エルボー法 | elbow method |
+| 樹狀圖 | デンドログラム | dendrogram |
+| 華德法 | ウォード法 | Ward's method |
+| 非監督式學習 | 教師なし学習 | unsupervised learning |
+| 降維 | 次元削減 | dimensionality reduction |
+| 特徵（資料的項目） | 特徴量 | feature |
+| 貢獻率／累積貢獻率 | 寄与率／累積寄与率 | (cumulative) explained variance ratio |
+| 共變異數矩陣 | 分散共分散行列 | covariance matrix |
+| 特徵值／特徵向量 | 固有値／固有ベクトル | eigenvalue / eigenvector |
+| 奇異值分解 | 特異値分解 | singular value decomposition |
+| 多元尺度法（MDS） | 多次元尺度構成法（MDS） | multidimensional scaling |
+| 標準化 | 標準化 | standardization |
+| 門檻 | しきい値 | threshold |
+| 混淆矩陣 | 混同行列 | confusion matrix |
+| 真陽性／偽陽性／偽陰性／真陰性 | 真陽性／偽陽性／偽陰性／真陰性 | TP / FP / FN / TN |
+| 準確率 | 正解率 | accuracy |
+| 精確率 | 適合率 | precision |
+| 召回率 | 再現率 | recall |
+| F 值 | F値 | F-measure |
+| 真陽性率／偽陽性率 | 真陽性率／偽陽性率 | TPR / FPR |
+| 曲線下面積（AUC） | AUC | area under the curve |
+| 保留驗證 | ホールドアウト検証 | holdout validation |
+| 交叉驗證 | 交差検証 | cross-validation |
+| 泛化能力 | 汎化性能 | generalization performance |
 
 ## 神經網路怎麼學習
 

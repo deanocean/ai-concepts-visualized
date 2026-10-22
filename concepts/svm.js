@@ -1,12 +1,13 @@
-/* SVM とカーネルトリック（シラバス §7）
+/* SVM 與核技巧（シラバス §7）
    三個模式，全部即時計算：
-   ① マージン最大化：轉動分界線的角度，程式替每個角度找最好的位置，畫出「角度 vs. マージン」；最大值就是 SVM 的解（硬マージン）。
-   ② ソフトマージン：多一個靠近對方的點；用 SMO 法真的解出 ½‖w‖² + C·Σξ 的最小值，調 C 看マージン與越界點的取捨。
-   ③ カーネルトリック：圓形分布的兩類。線形／升維 φ(x) = (x₁, x₂, x₁² + x₂²)／ガウシアン（RBF）三種核函數，
+   ① 最大化間隔：轉動分界線的角度，程式替每個角度找最好的位置，畫出「角度 vs. 間隔」；最大值就是 SVM 的解（硬間隔）。
+   ② 軟間隔：多一個靠近對方的點；用 SMO 演算法真的解出 ½‖w‖² + C·Σξ 的最小值，調 C 看間隔與越界點的取捨。
+   ③ 核技巧：圓形分布的兩類。線性／升維 φ(x) = (x₁, x₂, x₁² + x₂²)／高斯核（RBF）三種核函數，
       同樣用 SMO 求解；升維時另畫 3D 視圖與真正求出的分隔平面。
-   點都可以拖動（也可用方向鍵），拖完立即重算。 */
+   點都可以拖動（也可用方向鍵），拖完立即重算。
+   文字在 locales/zh/kernel.js、locales/ja/kernel.js。 */
 (function () {
-  /* ---------- SMO 法（Platt）：解 SVM 的對偶問題，回傳 α、b ---------- */
+  /* ---------- SMO 演算法（Platt）：解 SVM 的對偶問題，回傳 α、b ---------- */
   function smo(X, y, kern, C, tol = 1e-7) {
     const n = X.length, K = X.map((a) => X.map((b) => kern(a, b)));
     const al = new Float64Array(n); let b = 0;
@@ -61,14 +62,12 @@
   const sq = (a) => dot(a, a);
 
   Atlas.define("kernel", {
-    lead: `<p>兩類資料之間，能把它們分開的直線通常有無限多條，該選哪一條？<span class="jp">サポートベクターマシン</span>（支持向量機，<span class="en">SVM</span>）選「離兩邊最近的點都最遠」的那條，這叫<span class="jp">マージン最大化</span>（最大化間隔，<span class="en">margin maximization</span>）。如果資料根本不能用直線分開，就先把資料送到更高的維度再切；<span class="jp">カーネルトリック</span>（核技巧，<span class="en">kernel trick</span>）讓這件事不必真的算出高維座標。</p>`,
-    closing: `SVM 只由最靠近分界線的幾個點（<span class="jp">サポートベクター</span>）決定，其他點怎麼移動都不影響答案。C 決定要多嚴格地不准越界；直線分不開時，換一個<span class="jp">カーネル</span>（核函數）就等於在高維空間裡用平面切，而計算時只需要兩點之間的核函數值。`,
-
     mount(bench, ctx) {
       const { h, s, fmt, ui } = Atlas;
+      const { t } = ctx;
       let mode = "max";
-      const modeSeg = ui.seg({ label: "模式", value: mode, options: [
-        { value: "max", label: "① マージン最大化" }, { value: "soft", label: "② ソフトマージン" }, { value: "kern", label: "③ カーネルトリック" }],
+      const modeSeg = ui.seg({ label: t("modeLabel"), value: mode, options: [
+        { value: "max", label: t("modeMax") }, { value: "soft", label: t("modeSoft") }, { value: "kern", label: t("modeKern") }],
         onChange: (v) => { mode = v; show(); } });
       bench.append(h("style", { text: `
         .sv-figs { display: flex; flex-wrap: wrap; gap: 12px 18px; justify-content: center; align-items: flex-start; }
@@ -86,7 +85,7 @@
       bench.append(h("div", { class: "bench__row" }, modeSeg.el), box);
       let inst = null;
       function show() { if (inst && inst.destroy) inst.destroy(); box.replaceChildren(); inst = MODES[mode](); box.append(note); }
-      const setStatus = (el, k, t) => { el.className = "status status--" + k; el.textContent = t; };
+      const setStatus = (el, k, msg) => { el.className = "status status--" + k; el.textContent = msg; };
       const row = (k, b) => `<span class="calc-row"><span class="k">${k}</span> ${b}</span>`;
       const SUP = { "-": "⁻", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹" };
       const sci = (v, d = 4) => { if (v === 0 || Math.abs(v) >= 1e-3) return fmt(v, d); const [m, e] = v.toExponential(1).split("e"); return `${m}×10${String(+e).split("").map((c) => SUP[c]).join("")}`; };
@@ -96,7 +95,7 @@
       // 類別 A（+1）＝藍色圓點；類別 B（−1）＝紅色方塊（不只靠顏色區分）
       function marker(x, y, cls, i, extra = {}) {
         const common = { fill: cls > 0 ? "var(--pos)" : "var(--neg)", stroke: "var(--panel)", "stroke-width": 2, class: "sv-pt", "data-i": i, tabindex: 0, role: "button",
-          "aria-label": `類別 ${cls > 0 ? "A" : "B"} 的點，可拖動`, ...extra };
+          "aria-label": t("ptAria", { c: cls > 0 ? "A" : "B" }), ...extra };
         return cls > 0 ? s("circle", { cx: x, cy: y, r: 7.5, ...common }) : s("rect", { x: x - 7, y: y - 7, width: 14, height: 14, rx: 2, ...common });
       }
       function legend(items) {
@@ -144,7 +143,7 @@
       const XW = 8, YH = 5, U = 54, PM = { l: 28, t: 10, r: 10, b: 26 };
       const PW = PM.l + XW * U + PM.r, PH = PM.t + YH * U + PM.b;
       const X = (x) => PM.l + x * U, Y = (y) => PM.t + (YH - y) * U;
-      const clampPt = (v) => [Math.max(0.2, Math.min(XW - 0.2, v[0])), Math.max(0.2, Math.min(YH - 0.2, v[1]))].map((t) => Math.round(t * 20) / 20);
+      const clampPt = (v) => [Math.max(0.2, Math.min(XW - 0.2, v[0])), Math.max(0.2, Math.min(YH - 0.2, v[1]))].map((u) => Math.round(u * 20) / 20);
       const toDataLin = (sx, sy, raw) => clampPt(raw || [(sx - PM.l) / U, YH - (sy - PM.t) / U]);
       function planeSvg(label, clipId) {
         const svg = s("svg", { viewBox: `0 0 ${PW} ${PH}`, role: "img", "aria-label": label });
@@ -177,7 +176,7 @@
       }
       const ring = (g, p, r = 13) => g.append(s("circle", { cx: X(p[0]), cy: Y(p[1]), r, fill: "none", stroke: "var(--hot)", "stroke-width": 2.5 }));
 
-      /* ===================== ① マージン最大化 ===================== */
+      /* ===================== ① 最大化間隔 ===================== */
       function modeMax() {
         const pts = [...BASE_A.map((p) => ({ p: [...p], c: 1 })), ...BASE_B.map((p) => ({ p: [...p], c: -1 }))];
         let alpha = 90, exact = false; // 直線的方向（度，0〜180）
@@ -199,18 +198,18 @@
           ba = ((((lo + hi) / 2) % 180) + 180) % 180;
           best = { a: ba, ...atLine(ba) };
         }
-        const sl = ui.slider({ id: "sv-a", label: "分界線的角度", min: 0, max: 179, step: 1, value: alpha, format: (v) => (exact ? fmt(best.a, 1) : v) + "°", onInput: (v) => { alpha = v; exact = false; draw(); } });
-        const bestBtn = ui.btn("跳到 SVM 的答案", () => { exact = true; alpha = best.a; sl.set(Math.round(best.a)); draw(); }, { primary: true, sm: true });
-        const resetBtn = ui.btn("點放回原位", () => { BASE_A.concat(BASE_B).forEach((p, i) => { pts[i].p = [...p]; }); solve(); if (exact) alpha = best.a; draw(); }, { sm: true });
-        const main = planeSvg("兩類資料點、分界線與マージン", "svclip1");
-        const chart = s("svg", { viewBox: "0 0 360 240", role: "img", "aria-label": "分界線角度與マージン的關係" });
+        const sl = ui.slider({ id: "sv-a", label: t("angleLabel"), min: 0, max: 179, step: 1, value: alpha, format: (v) => (exact ? fmt(best.a, 1) : v) + "°", onInput: (v) => { alpha = v; exact = false; draw(); } });
+        const bestBtn = ui.btn(t("btnBest"), () => { exact = true; alpha = best.a; sl.set(Math.round(best.a)); draw(); }, { primary: true, sm: true });
+        const resetBtn = ui.btn(t("btnReset"), () => { BASE_A.concat(BASE_B).forEach((p, i) => { pts[i].p = [...p]; }); solve(); if (exact) alpha = best.a; draw(); }, { sm: true });
+        const main = planeSvg(t("maxMainAria"), "svclip1");
+        const chart = s("svg", { viewBox: "0 0 360 240", role: "img", "aria-label": t("maxChartAria") });
         const status = h("div", { class: "status" }), calc = h("div", { class: "calc" });
         box.append(
           h("div", { class: "bench__row" }, sl.el, bestBtn, resetBtn),
           h("div", { class: "scroll-x" }, h("div", { class: "sv-figs" },
-            h("div", { class: "sv-fig", style: { flexBasis: "420px" } }, h("div", { class: "sv-cap" }, "拖動點可以改資料；程式替每個角度找出最好的位置"), main,
-              legend([["A", "類別 A（+1）"], ["B", "類別 B（−1）"], ["line", "分界線"], ["band", "マージン（兩邊各留的空白）"], ["sv", "碰到邊緣的點"]])),
-            h("div", { class: "sv-fig", style: { flexBasis: "300px", maxWidth: "400px" } }, h("div", { class: "sv-cap" }, "每個角度最多能留多寬的マージン（底部紅線＝這些角度分不開）"), chart))),
+            h("div", { class: "sv-fig", style: { flexBasis: "420px" } }, h("div", { class: "sv-cap" }, t("maxMainCap")), main,
+              legend([["A", t("legA")], ["B", t("legB")], ["line", t("legLine")], ["band", t("legBand")], ["sv", t("legTouch")]])),
+            h("div", { class: "sv-fig", style: { flexBasis: "300px", maxWidth: "400px" } }, h("div", { class: "sv-cap" }, t("maxChartCap")), chart))),
           status, calc);
         draggable(main, toDataLin, pts, () => { solve(); if (exact) alpha = best.a; draw(); });
 
@@ -229,17 +228,17 @@
           pts.forEach((q, i) => main.append(marker(X(q.p[0]), Y(q.p[1]), q.c, i)));
           drawChart(r);
 
-          if (best.m <= 0) setStatus(status, "bad", "現在的資料不管哪個角度都分不開：試試②ソフトマージン或③カーネルトリック");
-          else if (!ok) setStatus(status, "bad", `這個角度怎麼放都會切錯點（紅圈）。把角度調到右圖曲線在 0 以上的範圍`);
-          else if (isBest) setStatus(status, "ok", `這就是 SVM 選的線：マージン ${fmt(best.m, 3)} 是所有角度中最大的；碰到邊緣的點叫サポートベクター（支持向量）`);
-          else setStatus(status, "info", `這個角度最多留 ${fmt(r.m, 3)} 的マージン，比最大值 ${fmt(best.m, 3)} 少了 ${fmt((1 - r.m / best.m) * 100, 0)}%`);
+          if (best.m <= 0) setStatus(status, "bad", t("statusNone"));
+          else if (!ok) setStatus(status, "bad", t("statusBadAngle"));
+          else if (isBest) setStatus(status, "ok", t("statusBest", { m: fmt(best.m, 3) }));
+          else setStatus(status, "info", t("statusAngle", { m: fmt(r.m, 3), best: fmt(best.m, 3), p: fmt((1 - r.m / best.m) * 100, 0) }));
 
           const th = Math.atan2(r.u[1], r.u[0]);
           calc.innerHTML =
-            row("這個角度", `法向量 u = (cos θ, sin θ) = (${fmt(r.u[0], 3)}, ${fmt(r.u[1], 3)})，每個點投影 u·x　<span class="k">（θ = ${fmt(((th / deg) + 360) % 360, 1)}°，和分界線垂直）</span>`) +
-            row("", `類別 A 最小 ${fmt(r.pa, 3)}，類別 B 最大 ${fmt(r.pb, 3)}　→　分界線放正中間 u·x = ${fmt(r.c, 3)}，マージン = (${fmt(r.pa, 3)} − ${fmt(r.pb, 3)}) ÷ 2 = <span class="hl">${fmt(r.m, 3)}</span>`) +
-            (best.m > 0 ? row("SVM 的解", `所有角度中最大的マージン：角度 ${fmt(best.a, 1)}°、マージン ${fmt(best.m, 3)}`) +
-              row("標準寫法", `在 yᵢ(w·xᵢ + b) ≥ 1 的條件下讓 ‖w‖ 最小，マージン = 1 ÷ ‖w‖ → ‖w‖ = 1 ÷ ${fmt(best.m, 3)} = ${fmt(1 / best.m, 3)}`) : "");
+            row(t("calcAngleK"), t("calcAngle", { u: `(${fmt(r.u[0], 3)}, ${fmt(r.u[1], 3)})`, th: fmt(((th / deg) + 360) % 360, 1) })) +
+            row("", t("calcProj", { pa: fmt(r.pa, 3), pb: fmt(r.pb, 3), c: fmt(r.c, 3), m: fmt(r.m, 3) })) +
+            (best.m > 0 ? row(t("calcBestK"), t("calcBest", { a: fmt(best.a, 1), m: fmt(best.m, 3) })) +
+              row(t("calcStdK"), t("calcStd", { m: fmt(best.m, 3), w: fmt(1 / best.m, 3) })) : "");
         }
         function drawChart(r) {
           const CW = 360, CH = 240, m = { l: 40, r: 12, t: 16, b: 34 };
@@ -252,7 +251,7 @@
             chart.append(s("text", { x: m.l - 5, y: cy(v) + 4, "text-anchor": "end", "font-size": 10, class: "t-mono t-muted", text: fmt(v, 2) }));
           }
           for (let a = 0; a <= 180; a += 45) chart.append(s("text", { x: cx(a), y: CH - m.b + 15, "text-anchor": "middle", "font-size": 10, class: "t-mono t-muted", text: a + "°" }));
-          chart.append(s("text", { x: CW - m.r, y: CH - 4, "text-anchor": "end", "font-size": 10.5, class: "t-muted", text: "分界線的角度" }));
+          chart.append(s("text", { x: CW - m.r, y: CH - 4, "text-anchor": "end", "font-size": 10.5, class: "t-muted", text: t("angleLabel") }));
           // 分不開的角度：底部紅色粗線
           let d = "", bad = "";
           for (let k = 0; k <= 360; k++) {
@@ -265,32 +264,32 @@
           if (best.m > 0) {
             chart.append(s("circle", { cx: cx(best.a), cy: cy(best.m), r: 4.5, fill: "var(--ok)" }));
             const right = best.a > 120;
-            chart.append(s("text", { x: cx(best.a) + (right ? -8 : 8), y: cy(best.m) - 6, "text-anchor": right ? "end" : "start", "font-size": 11, "font-weight": 700, fill: "var(--ok)", class: "t-halo", text: `最大 ${fmt(best.m, 3)}（SVM）` }));
+            chart.append(s("text", { x: cx(best.a) + (right ? -8 : 8), y: cy(best.m) - 6, "text-anchor": right ? "end" : "start", "font-size": 11, "font-weight": 700, fill: "var(--ok)", class: "t-halo", text: t("chartBest", { m: fmt(best.m, 3) }) }));
           }
           const a = exact ? best.a : alpha;
           chart.append(s("line", { x1: cx(a), x2: cx(a), y1: m.t, y2: CH - m.b, stroke: "var(--hot)", "stroke-width": 1.5, "stroke-dasharray": "4 3" }));
           chart.append(s("circle", { cx: cx(a), cy: cy(r.m), r: 5.5, fill: "var(--hot)", stroke: "var(--panel)", "stroke-width": 2 }));
         }
         solve(); draw();
-        note.innerHTML = `分界線兩側各畫一條平行的虛線，推到碰到最近的點為止，中間的空白寬度的一半就是<span class="jp">マージン</span>（間隔，<span class="en">margin</span>）。マージン越寬，新資料稍微偏一點也不容易被分錯。只有碰到虛線的點（<span class="jp">サポートベクター</span>，支持向量，<span class="en">support vector</span>）決定答案：把離分界線遠的點往外拖，SVM 的解完全不變。要求每個點都不准越界的叫<span class="jp">ハードマージン</span>（硬間隔）。`;
+        note.innerHTML = t("noteMax");
         return {};
       }
 
-      /* ===================== ② ソフトマージン ===================== */
+      /* ===================== ② 軟間隔 ===================== */
       function modeSoft() {
         const OUT = [4.4, 3.0];
         const pts = [...BASE_A.map((p) => ({ p: [...p], c: 1 })), ...BASE_B.map((p) => ({ p: [...p], c: -1 })), { p: [...OUT], c: -1 }];
         const CS = [0.05, 0.1, 0.3, 1, 3, 10, 100];
         let ci = 6;
-        const sl = ui.slider({ id: "sv-c", label: "C（越界的罰分有多重）", min: 0, max: CS.length - 1, step: 1, value: ci, format: (v) => String(CS[v]), onInput: (v) => { ci = v; draw(); } });
-        const resetBtn = ui.btn("點放回原位", () => { BASE_A.concat(BASE_B, [OUT]).forEach((p, i) => { pts[i].p = [...p]; }); draw(); }, { sm: true });
-        const main = planeSvg("兩類資料點、SVM 的分界線、マージン與越界的點", "svclip2");
+        const sl = ui.slider({ id: "sv-c", label: t("cLabel"), min: 0, max: CS.length - 1, step: 1, value: ci, format: (v) => String(CS[v]), onInput: (v) => { ci = v; draw(); } });
+        const resetBtn = ui.btn(t("btnReset"), () => { BASE_A.concat(BASE_B, [OUT]).forEach((p, i) => { pts[i].p = [...p]; }); draw(); }, { sm: true });
+        const main = planeSvg(t("softAria"), "svclip2");
         const status = h("div", { class: "status" }), calc = h("div", { class: "calc" });
         box.append(
           h("div", { class: "bench__row" }, sl.el, resetBtn),
           h("div", { class: "scroll-x" }, h("div", { class: "sv-figs" }, h("div", { class: "sv-fig", style: { flexBasis: "460px", maxWidth: "620px" } },
-            h("div", { class: "sv-cap" }, "最靠中間的紅色方塊離類別 A 很近；拖動點可以改資料"), main,
-            legend([["A", "類別 A（+1）"], ["B", "類別 B（−1）"], ["line", "分界線 w·x + b = 0"], ["band", "マージン（w·x + b = ±1）"], ["sv", "サポートベクター"], ["xi", "越界的距離 ξ"]])))),
+            h("div", { class: "sv-cap" }, t("softCap")), main,
+            legend([["A", t("legA")], ["B", t("legB")], ["line", t("legLineEq")], ["band", t("legBandEq")], ["sv", t("legSv")], ["xi", t("legXi")]])))),
           status, calc);
         draggable(main, toDataLin, pts, draw);
 
@@ -307,7 +306,7 @@
           Xs.forEach((p, i) => {
             if (xi[i] > 1e-6) {
               // 從點畫到「自己那一側的虛線」：沿 w 方向移動 (yᵢ − f(x)) ÷ ‖w‖²
-              const t = (ys[i] - fx(p)) / (nw * nw), q = [p[0] + t * w[0], p[1] + t * w[1]];
+              const k = (ys[i] - fx(p)) / (nw * nw), q = [p[0] + k * w[0], p[1] + k * w[1]];
               g.append(s("line", { x1: X(p[0]), y1: Y(p[1]), x2: X(q[0]), y2: Y(q[1]), stroke: "var(--bad)", "stroke-width": 2, "stroke-dasharray": "3 3" }));
             }
             if (r.alpha[i] > 1e-7) ring(g, p);
@@ -315,20 +314,20 @@
           pts.forEach((q, i) => main.append(marker(X(q.p[0]), Y(q.p[1]), q.c, i)));
 
           const nsv = r.alpha.filter((a) => a > 1e-7).length, viol = xi.filter((v) => v > 1e-6).length, wrong = xi.filter((v) => v > 1).length, sumXi = xi.reduce((a, v) => a + v, 0);
-          if (viol === 0) setStatus(status, "warn", `C = ${C}：一個點都沒越界，代價是マージン只剩 ${fmt(mar, 3)}。把 C 調小看看`);
-          else setStatus(status, wrong ? "info" : "ok", `C = ${C}：容許 ${viol} 個點進入マージン${wrong ? `（其中 ${wrong} 個跑到另一邊，被分錯）` : ""}，換到マージン ${fmt(mar, 3)}`);
-          const list = Xs.map((p, i) => [p, xi[i]]).filter((v) => v[1] > 1e-6).sort((a, b) => b[1] - a[1]).map(([p, v]) => `${pt2(p)} ${fmt(v, 3)}`).join("、");
+          if (viol === 0) setStatus(status, "warn", t("statusNoViol", { c: C, m: fmt(mar, 3) }));
+          else setStatus(status, wrong ? "info" : "ok", wrong ? t("statusViolWrong", { c: C, n: viol, w: wrong, m: fmt(mar, 3) }) : t("statusViol", { c: C, n: viol, m: fmt(mar, 3) }));
+          const list = Xs.map((p, i) => [p, xi[i]]).filter((v) => v[1] > 1e-6).sort((a, b) => b[1] - a[1]).map(([p, v]) => `${pt2(p)} ${fmt(v, 3)}`).join(t("listSep"));
           calc.innerHTML =
-            row("要最小化", `½‖w‖² + C·Σξᵢ = ½ × ${fmt(nw, 3)}² + ${C} × ${fmt(sumXi, 3)} = <span class="hl">${fmt(0.5 * nw * nw + C * sumXi, 3)}</span>`) +
-            row("解", `w = (${fmt(w[0], 3)}, ${fmt(w[1], 3)})，b = ${fmt(r.b, 3)}；マージン = 1 ÷ ‖w‖ = <span class="hl">${fmt(mar, 3)}</span>；サポートベクター ${nsv} 個`) +
-            row("ξ（越界多少）", viol ? list + `　<span class="k">（ξ = 0 沒越界，0〜1 在マージン內，> 1 分錯）</span>` : "全部是 0");
+            row(t("calcObjK"), t("calcObj", { nw: fmt(nw, 3), c: C, xi: fmt(sumXi, 3), v: fmt(0.5 * nw * nw + C * sumXi, 3) })) +
+            row(t("calcSolK"), t("calcSol", { w: `(${fmt(w[0], 3)}, ${fmt(w[1], 3)})`, b: fmt(r.b, 3), m: fmt(mar, 3), n: nsv })) +
+            row(t("calcXiK"), viol ? t("calcXi", { list }) : t("calcXiNone"));
         }
         draw();
-        note.innerHTML = `真實資料常有雜訊，硬要每個點都不越界，マージン會被一兩個點擠得很窄，甚至根本分不開。<span class="jp">ソフトマージン</span>（軟間隔，<span class="en">soft margin</span>）允許點越界，但每越界一點就加罰分：ξ（<span class="jp">スラック変数</span>，鬆弛變數，<span class="en">slack variable</span>）量出越界多少，C 是罰分的倍率。C 大＝嚴格，接近ハードマージン；C 小＝寬鬆，マージン寬、比較不會被少數點牽著走。C 是訓練前由人決定的ハイパーパラメータ。這裡的解用 SMO 法（每次只調兩個係數的反覆計算）求出。`;
+        note.innerHTML = t("noteSoft");
         return {};
       }
 
-      /* ===================== ③ カーネルトリック ===================== */
+      /* ===================== ③ 核技巧 ===================== */
       function modeKern() {
         const IN = [[0.3, 0.2], [-0.5, 0.6], [0.8, -0.3], [-0.2, -0.9], [0.6, 0.7], [-0.8, -0.2], [0.1, -0.4], [-0.4, 0.1]];
         const OUT = [[1.97, 0.35], [1.38, 1.16], [0.57, 2.13], [-0.49, 1.84], [-1.61, 1.35], [-1.64, 0.44], [-1.88, -0.68], [-1.41, -1.69], [-0.47, -1.74], [0.72, -1.97], [1.46, -1.22], [1.93, -0.52]];
@@ -340,29 +339,29 @@
           lift: (a, b) => dot(a, b) + sq(a) * sq(b),
           rbf: (a, b) => Math.exp(-GAMMAS[gi] * ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)),
         };
-        const kSeg = ui.seg({ label: "核函數（カーネル）", value: kind, options: [
-          { value: "lin", label: "線形" }, { value: "lift", label: "升維 φ（加上 x₁² + x₂²）" }, { value: "rbf", label: "ガウシアン（RBF）" }],
+        const kSeg = ui.seg({ label: t("kernLabel"), value: kind, options: [
+          { value: "lin", label: t("kernLin") }, { value: "lift", label: t("kernLift") }, { value: "rbf", label: t("kernRbf") }],
           onChange: (v) => { kind = v; draw(); } });
-        const gSl = ui.slider({ id: "sv-g", label: "γ（RBF 的影響範圍：越大越窄）", min: 0, max: GAMMAS.length - 1, step: 1, value: gi, format: (v) => String(GAMMAS[v]), onInput: (v) => { gi = v; draw(); } });
-        const eSl = ui.slider({ id: "sv-e", label: "3D 視角：仰角", min: 0, max: 90, step: 1, value: elev, format: (v) => v + "°", onInput: (v) => { elev = v; draw(); } });
-        const aSl = ui.slider({ id: "sv-z", label: "3D 視角：水平旋轉", min: 0, max: 359, step: 1, value: azim, format: (v) => v + "°", onInput: (v) => { azim = v; draw(); } });
-        const resetBtn = ui.btn("點放回原位", () => { IN.concat(OUT).forEach((p, i) => { pts[i].p = [...p]; }); draw(); }, { sm: true });
+        const gSl = ui.slider({ id: "sv-g", label: t("gammaLabel"), min: 0, max: GAMMAS.length - 1, step: 1, value: gi, format: (v) => String(GAMMAS[v]), onInput: (v) => { gi = v; draw(); } });
+        const eSl = ui.slider({ id: "sv-e", label: t("elevLabel"), min: 0, max: 90, step: 1, value: elev, format: (v) => v + "°", onInput: (v) => { elev = v; draw(); } });
+        const aSl = ui.slider({ id: "sv-z", label: t("azimLabel"), min: 0, max: 359, step: 1, value: azim, format: (v) => v + "°", onInput: (v) => { azim = v; draw(); } });
+        const resetBtn = ui.btn(t("btnReset"), () => { IN.concat(OUT).forEach((p, i) => { pts[i].p = [...p]; }); draw(); }, { sm: true });
         const gRow = h("div", { class: "bench__row" }, gSl.el);
         const vRow = h("div", { class: "bench__row" }, eSl.el, aSl.el);
 
         const R = 2.6, KU = 64, KM = { l: 30, t: 10, r: 10, b: 26 };
         const KW = KM.l + 2 * R * KU + KM.r, KH = KM.t + 2 * R * KU + KM.b;
         const KX = (x) => KM.l + (x + R) * KU, KY = (y) => KM.t + (R - y) * KU;
-        const toDataK = (sx, sy, raw) => (raw || [(sx - KM.l) / KU - R, R - (sy - KM.t) / KU]).map((t) => Math.round(Math.max(-R + 0.15, Math.min(R - 0.15, t)) * 20) / 20);
-        const flat = s("svg", { viewBox: `0 0 ${KW} ${KH}`, role: "img", "aria-label": "原本的平面：資料點與 SVM 的分界線" });
-        const cube = s("svg", { viewBox: "0 0 380 360", role: "img", "aria-label": "升到 3D 後的資料點與分隔平面" });
-        const cubeFig = h("div", { class: "sv-fig", style: { flexBasis: "300px", maxWidth: "440px" } }, h("div", { class: "sv-cap" }, "升維後：z = x₁² + x₂²（離中心越遠越高）"), cube);
+        const toDataK = (sx, sy, raw) => (raw || [(sx - KM.l) / KU - R, R - (sy - KM.t) / KU]).map((u) => Math.round(Math.max(-R + 0.15, Math.min(R - 0.15, u)) * 20) / 20);
+        const flat = s("svg", { viewBox: `0 0 ${KW} ${KH}`, role: "img", "aria-label": t("flatAria") });
+        const cube = s("svg", { viewBox: "0 0 380 360", role: "img", "aria-label": t("cubeAria") });
+        const cubeFig = h("div", { class: "sv-fig", style: { flexBasis: "300px", maxWidth: "440px" } }, h("div", { class: "sv-cap" }, t("cubeCap")), cube);
         const status = h("div", { class: "status" }), calc = h("div", { class: "calc" });
         box.append(
           h("div", { class: "bench__row" }, kSeg.el, resetBtn), gRow,
           h("div", { class: "scroll-x" }, h("div", { class: "sv-figs" },
-            h("div", { class: "sv-fig", style: { flexBasis: "330px", maxWidth: "440px" } }, h("div", { class: "sv-cap" }, "原本的平面（點兩個點，看下面的核函數計算）"), flat,
-              legend([["A", "類別 A（+1）"], ["B", "類別 B（−1）"], ["line", "分界 f(x) = 0"], ["sv", "サポートベクター"]])),
+            h("div", { class: "sv-fig", style: { flexBasis: "330px", maxWidth: "440px" } }, h("div", { class: "sv-cap" }, t("flatCap")), flat,
+              legend([["A", t("legA")], ["B", t("legB")], ["line", t("legBoundary")], ["sv", t("legSv")]])),
             cubeFig)),
           vRow, status, calc);
         draggable(flat, toDataK, pts, draw, (i) => { if (i !== sel[1]) sel = [sel[1], i]; draw(); });
@@ -375,7 +374,7 @@
             const v = [F[i][j] - level, F[i + 1][j] - level, F[i + 1][j + 1] - level, F[i][j + 1] - level];
             const c = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)];
             const cr = [];
-            for (let e = 0; e < 4; e++) { const a = v[e], b = v[(e + 1) % 4]; if ((a < 0) !== (b < 0)) { const t = a / (a - b), p = c[e], q = c[(e + 1) % 4]; cr.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]); } }
+            for (let e = 0; e < 4; e++) { const a = v[e], b = v[(e + 1) % 4]; if ((a < 0) !== (b < 0)) { const f = a / (a - b), p = c[e], q = c[(e + 1) % 4]; cr.push([p[0] + f * (q[0] - p[0]), p[1] + f * (q[1] - p[1])]); } }
             if (cr.length === 2) d += `M${KX(cr[0][0]).toFixed(1)},${KY(cr[0][1]).toFixed(1)}L${KX(cr[1][0]).toFixed(1)},${KY(cr[1][1]).toFixed(1)}`;
             else if (cr.length === 4) { const mid = (v[0] + v[1] + v[2] + v[3]) / 4, o = (mid < 0) === (v[0] < 0) ? [0, 3, 2, 1] : [0, 1, 2, 3]; d += `M${KX(cr[o[0]][0]).toFixed(1)},${KY(cr[o[0]][1]).toFixed(1)}L${KX(cr[o[1]][0]).toFixed(1)},${KY(cr[o[1]][1]).toFixed(1)}M${KX(cr[o[2]][0]).toFixed(1)},${KY(cr[o[2]][1]).toFixed(1)}L${KX(cr[o[3]][0]).toFixed(1)},${KY(cr[o[3]][1]).toFixed(1)}`; }
           }
@@ -415,7 +414,7 @@
           g.append(s("path", { d: contour(F, G, -R, st, 0), fill: "none", stroke: "var(--ink)", "stroke-width": 2.5 }));
           svIdx.forEach((i) => g.append(s("circle", { cx: KX(Xs[i][0]), cy: KY(Xs[i][1]), r: 12, fill: "none", stroke: "var(--hot)", "stroke-width": 2.5 })));
           flat.append(g);
-          pts.forEach((q, i) => flat.append(marker(KX(q.p[0]), KY(q.p[1]), q.c, i, { "aria-label": `類別 ${q.c > 0 ? "A" : "B"} 的點，可拖動；按 Enter 選為計算用的點` })));
+          pts.forEach((q, i) => flat.append(marker(KX(q.p[0]), KY(q.p[1]), q.c, i, { "aria-label": t("ptAriaSel", { c: q.c > 0 ? "A" : "B" }) })));
           ["a", "b"].forEach((nm, k) => {
             const p = Xs[sel[k]], below = p[1] > R - 0.5;
             flat.append(s("text", { x: KX(p[0]) + 11, y: KY(p[1]) + (below ? 20 : -9), "font-size": 13, "font-weight": 700, fill: "var(--hot)", class: "t-halo", text: nm, style: "pointer-events:none" }));
@@ -425,10 +424,10 @@
 
           /* --- 狀態 --- */
           const n = Xs.length;
-          if (kind === "lin") setStatus(status, acc === n ? "ok" : "bad", acc === n ? `線形也分得開：分對 ${acc} / ${n}` : `直線怎麼切都不行：最好也只分對 ${acc} / ${n} 個點`);
-          else if (kind === "lift") setStatus(status, acc === n ? "ok" : "warn", acc === n ? `升到 3D 後一個平面就分開了（${acc} / ${n}）；放回原本的平面，分界變成一個圓` : `升維後仍分對 ${acc} / ${n}：拖動的點已經不是「內外」的關係了`);
-          else if (svIdx.length === n) setStatus(status, "warn", `γ = ${GAMMAS[gi]}：全部 ${n} 個點都成了サポートベクター，分界緊緊包住每個點，容易過擬合`);
-          else setStatus(status, acc === n ? "ok" : "warn", `γ = ${GAMMAS[gi]}：分對 ${acc} / ${n}，用到 ${svIdx.length} 個サポートベクター`);
+          if (kind === "lin") setStatus(status, acc === n ? "ok" : "bad", t(acc === n ? "statusLinOk" : "statusLinBad", { acc, n }));
+          else if (kind === "lift") setStatus(status, acc === n ? "ok" : "warn", t(acc === n ? "statusLiftOk" : "statusLiftBad", { acc, n }));
+          else if (svIdx.length === n) setStatus(status, "warn", t("statusRbfAll", { g: GAMMAS[gi], n }));
+          else setStatus(status, acc === n ? "ok" : "warn", t("statusRbf", { g: GAMMAS[gi], acc, n, sv: svIdx.length }));
 
           /* --- 算式：選中的兩點 a、b --- */
           const a = Xs[sel[0]], b = Xs[sel[1]];
@@ -436,14 +435,14 @@
           if (kind === "lin") kr = row("K(a, b) = a·b", `${fmt(a[0], 2)}×${Atlas.fmtP(b[0], 2)} + ${fmt(a[1], 2)}×${Atlas.fmtP(b[1], 2)} = <span class="hl">${fmt(dot(a, b), 3)}</span>`);
           else if (kind === "lift") {
             const pa = [a[0], a[1], sq(a)], pb = [b[0], b[1], sq(b)], pd = pa[0] * pb[0] + pa[1] * pb[1] + pa[2] * pb[2];
-            kr = row("明著算", `φ(a) = (a₁, a₂, a₁² + a₂²) = (${pa.map((v) => fmt(v, 3)).join(", ")})，φ(b) = (${pb.map((v) => fmt(v, 3)).join(", ")})，φ(a)·φ(b) = <span class="hl">${fmt(pd, 4)}</span>`) +
-              row("用核函數", `K(a, b) = a·b + ‖a‖²‖b‖² = ${fmt(dot(a, b), 4)} + ${fmt(sq(a), 4)} × ${fmt(sq(b), 4)} = <span class="hl">${fmt(KERN.lift(a, b), 4)}</span>　<span class="k">（相同，不必先算出 φ）</span>`);
+            kr = row(t("calcExplicitK"), t("calcExplicit", { pa: `(${pa.map((v) => fmt(v, 3)).join(", ")})`, pb: `(${pb.map((v) => fmt(v, 3)).join(", ")})`, v: fmt(pd, 4) })) +
+              row(t("calcKernK"), t("calcKern", { ab: fmt(dot(a, b), 4), aa: fmt(sq(a), 4), bb: fmt(sq(b), 4), v: fmt(KERN.lift(a, b), 4) }));
           } else {
             const d2 = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
-            kr = row("K(a, b)", `exp(−γ‖a − b‖²) = exp(−${GAMMAS[gi]} × ${fmt(d2, 3)}) = <span class="hl">${sci(KERN.rbf(a, b))}</span>　<span class="k">（越近越接近 1；對應的 φ 有無限多維，只能用核函數算）</span>`);
+            kr = row("K(a, b)", t("calcRbf", { g: GAMMAS[gi], d: fmt(d2, 3), v: sci(KERN.rbf(a, b)) }));
           }
-          calc.innerHTML = row("選中的點", `a = ${pt2(a)}，b = ${pt2(b)}`) + kr +
-            row("判定", `f(x) = Σ αᵢyᵢK(xᵢ, x) + b，只加總 ${svIdx.length} 個サポートベクター（其他點的 α = 0）。f(a) = ${fmt(r.f(a), 3)} → 判為類別 ${r.f(a) >= 0 ? "A" : "B"}`);
+          calc.innerHTML = row(t("calcSelK"), t("calcSel", { a: pt2(a), b: pt2(b) })) + kr +
+            row(t("calcDecK"), t("calcDec", { n: svIdx.length, f: fmt(r.f(a), 3), c: r.f(a) >= 0 ? "A" : "B" }));
         }
 
         function draw3d(r, Xs, ys) {
@@ -456,8 +455,8 @@
           cube.replaceChildren();
           const B = 2.4, poly = (ps, attrs) => cube.append(s("polygon", { points: ps.map((p) => p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" "), ...attrs }));
           poly([proj(-B, -B, 0), proj(B, -B, 0), proj(B, B, 0), proj(-B, B, 0)], { fill: "var(--panel-2)", stroke: "var(--line-strong)" });
-          for (let t = -2; t <= 2; t++) {
-            const p1 = proj(t, -B, 0), p2 = proj(t, B, 0), q1 = proj(-B, t, 0), q2 = proj(B, t, 0);
+          for (let v = -2; v <= 2; v++) {
+            const p1 = proj(v, -B, 0), p2 = proj(v, B, 0), q1 = proj(-B, v, 0), q2 = proj(B, v, 0);
             cube.append(s("line", { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, stroke: "var(--line)" }));
             cube.append(s("line", { x1: q1.x, y1: q1.y, x2: q2.x, y2: q2.y, stroke: "var(--line)" }));
           }
@@ -484,12 +483,12 @@
           drawPts(above);
           // 標籤放在平面最靠近觀看者（畫面最下方）的角的下面
           const lab = corners.slice().sort((a, b) => b.y - a.y)[0];
-          cube.append(s("text", { x: Math.max(60, Math.min(320, lab.x)), y: Math.min(330, lab.y + 18), "text-anchor": "middle", "font-size": 11.5, "font-weight": 700, fill: "var(--hot)", class: "t-halo", text: "SVM 找到的平面" }));
+          cube.append(s("text", { x: Math.max(60, Math.min(320, lab.x)), y: Math.min(330, lab.y + 18), "text-anchor": "middle", "font-size": 11.5, "font-weight": 700, fill: "var(--hot)", class: "t-halo", text: t("cubePlane") }));
           cube.append(s("text", { x: 190, y: 352, "text-anchor": "middle", "font-size": 11, class: "t-mono t-muted", text: `${fmt(w[0], 2)}·x₁ + ${fmt(w[1], 2)}·x₂ + ${fmt(w[2], 2)}·z + ${fmt(r.b, 2)} = 0`.replace(/\+ −/g, "− ") }));
         }
         draw();
         const comb = (n, k) => { let v = 1; for (let i = 1; i <= k; i++) v = (v * (n - k + i)) / i; return Math.round(v); };
-        note.innerHTML = `類別 A 在中間、類別 B 圍成一圈，平面上沒有直線能分開。替每個點加上第三個座標 z = x₁² + x₂²（離中心的距離平方），外圈的點被抬高，一個平面就能切開；放回原本的平面，這個平面的切口就是圓。SVM 的計算其實只用到兩點之間的內積 φ(a)·φ(b)，所以只要有一個函數 K(a, b) 直接算出這個內積（<span class="jp">カーネル関数</span>，核函數），就不必真的算出高維座標，這就是<span class="jp">カーネルトリック</span>。省下的計算量在維度高時才明顯：多項式核 (a·b + 1)³ 用在 784 個像素（28×28 的圖）上，對應的 φ 有 ${comb(787, 3).toLocaleString()} 維，核函數卻只要算一次 784 維的內積。<span class="jp">ガウシアンカーネル</span>（RBF 核）的 φ 有無限多維；γ 太大時分界緊貼每個點，和<a href="#overfit">過学習</a>是同一回事。這裡 C 固定為 10。`;
+        note.innerHTML = t("noteKern", { dim: comb(787, 3).toLocaleString("en-US") });
         return {};
       }
 
