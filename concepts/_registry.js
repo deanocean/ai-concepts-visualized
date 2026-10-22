@@ -32,11 +32,11 @@ Atlas.registry(
     { id: "roc", area: "ml", sec: "§10", en: "ROC Curve & AUC", added: true, file: "concepts/roc.js", i18n: true },
 
     /* 神經網路怎麼學習 */
-    { id: "gd", area: "learn", sec: "§16", en: "Gradient Descent & Learning Rate", file: "concepts/gradient-descent.js" },
-    { id: "sgd", area: "learn", sec: "§16", en: "SGD & Mini-batch", added: true, file: "concepts/sgd.js" },
-    { id: "optim", area: "learn", sec: "§16", en: "Momentum & Adam", added: true, file: "concepts/optim.js" },
-    { id: "backprop", area: "learn", sec: "§15", en: "Backpropagation & Chain Rule", file: "concepts/backprop.js" },
-    { id: "vanish", area: "learn", sec: "§12・15", en: "Vanishing Gradient", file: "concepts/vanishing.js" },
+    { id: "gd", area: "learn", sec: "§16", en: "Gradient Descent & Learning Rate", file: "concepts/gradient-descent.js", i18n: true },
+    { id: "sgd", area: "learn", sec: "§16", en: "SGD & Mini-batch", added: true, file: "concepts/sgd.js", i18n: true },
+    { id: "optim", area: "learn", sec: "§16", en: "Momentum & Adam", added: true, file: "concepts/optim.js", i18n: true },
+    { id: "backprop", area: "learn", sec: "§15", en: "Backpropagation & Chain Rule", file: "concepts/backprop.js", i18n: true },
+    { id: "vanish", area: "learn", sec: "§12・15", en: "Vanishing Gradient", file: "concepts/vanishing.js", i18n: true },
     { id: "act", area: "learn", sec: "§12", en: "Activation Functions", file: "concepts/activation.js" },
     { id: "loss", area: "learn", sec: "§13", en: "Loss Functions", added: true, file: "concepts/loss.js" },
     { id: "overfit", area: "learn", sec: "§10・14", en: "Overfitting & Regularization", file: "concepts/overfitting.js" },

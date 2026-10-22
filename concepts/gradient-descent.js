@@ -1,23 +1,22 @@
-/* 勾配降下法と学習率（シラバス §16）
+/* 梯度下降法與學習率（大綱 §16）
    1D：L(w) = (w − 1)²，看學習率三種情況
-   2D：等高線，「細長山谷」看鋸齒、「兩個谷」看局所最適解 */
+   2D：等高線，「細長山谷」看鋸齒、「兩個谷」看局部最佳解
+   文字在 locales/zh/gd.js、locales/ja/gd.js。 */
 Atlas.define("gd", {
-  lead: `<p>訓練模型，就是找出讓<b>損失</b>（預測和正解差多少）最小的參數。但我們看不到整片地形，只能在腳下量出坡度，然後往下坡走一步。這個做法叫 <span class="jp">勾配降下法</span>（梯度下降法，<span class="en">gradient descent</span>）；每一步跨多大，由 <span class="jp">学習率</span>（學習率，<span class="en">learning rate</span>）決定。</p>`,
-  closing: `學習率太小要走非常多步；太大會跨過谷底來回震盪，甚至越彈越遠而發散。地形有好幾個谷時，從哪裡出發，就決定最後落進哪一個谷。`,
-
   mount(bench, ctx) {
     const { h, s, fmt, fmtP, ui } = Atlas;
+    const { t } = ctx;
     let mode = "1d";
 
     /* ===================== 共用 UI ===================== */
     const modeSeg = ui.seg({
-      label: "地形", value: mode,
-      options: [{ value: "1d", label: "1D 曲線" }, { value: "2d", label: "2D 等高線" }],
+      label: t("modeLabel"), value: mode,
+      options: [{ value: "1d", label: t("mode1d") }, { value: "2d", label: t("mode2d") }],
       onChange: (v) => { mode = v; switchMode(); },
     });
     const surfSeg = ui.seg({
-      label: "2D 地形", value: "valley",
-      options: [{ value: "valley", label: "細長山谷" }, { value: "twin", label: "兩個谷" }],
+      label: t("surfLabel"), value: "valley",
+      options: [{ value: "valley", label: t("surfValley") }, { value: "twin", label: t("surfTwin") }],
       onChange: (v) => { two.setSurface(v); },
     });
     const view = h("div", { class: "scroll-x" });
@@ -25,25 +24,25 @@ Atlas.define("gd", {
     const note = h("p", { class: "note" });
     const calc = h("div", { class: "calc" });
     const extra = h("div");
-    const lrSlider = ui.slider({ id: "gd-lr", label: "学習率 η", min: 0.01, max: 1.2, step: 0.01, value: 0.3, format: (v) => v.toFixed(3).replace(/0$/, ""), onInput: (v) => cur().setLr(v) });
+    const lrSlider = ui.slider({ id: "gd-lr", label: t("lrLabel"), min: 0.01, max: 1.2, step: 0.01, value: 0.3, format: (v) => v.toFixed(3).replace(/0$/, ""), onInput: (v) => cur().setLr(v) });
     const presetBox = h("div", { class: "btn-group" });
     const player = ui.player(ctx, () => cur().step(), 520);
-    const stepBtn = ui.btn("走一步", () => { player.pause(); cur().step(); }, { primary: true });
-    const resetBtn = ui.btn("重設", () => { player.pause(); cur().reset(); });
+    const stepBtn = ui.btn(t("btnStep"), () => { player.pause(); cur().step(); }, { primary: true });
+    const resetBtn = ui.btn(t("btnReset"), () => { player.pause(); cur().reset(); });
     const hint = h("p", { class: "hint" });
 
     bench.append(
       h("div", { class: "bench__row" }, modeSeg.el, surfSeg.el),
       view,
       h("div", { class: "bench__row bench__row--between" }, status, hint),
-      h("div", { class: "bench__row" }, lrSlider.el, h("div", { class: "field" }, h("span", { class: "field__label" }, "快速選擇"), presetBox)),
+      h("div", { class: "bench__row" }, lrSlider.el, h("div", { class: "field" }, h("span", { class: "field__label" }, t("presetLabel")), presetBox)),
       h("div", { class: "bench__row" }, stepBtn, player.el, resetBtn),
       calc, note, extra,
     );
 
     function setPresets(list) {
       presetBox.replaceChildren(...list.map(([label, v]) =>
-        ui.btn(`${label}（${v}）`, () => { player.pause(); lrSlider.set(v); cur().setLr(v); }, { sm: true })));
+        ui.btn(t("presetBtn", { label: t(label), v }), () => { player.pause(); lrSlider.set(v); cur().setLr(v); }, { sm: true })));
     }
     function setStatus(kind, text) { status.className = "status status--" + kind; status.textContent = text; }
 
@@ -56,9 +55,9 @@ Atlas.define("gd", {
       const sy = (y) => H - M.b - ((y - Y0) / (Y1 - Y0)) * (H - M.t - M.b);
       let lr = 0.3, start = -3, hist = [start];
 
-      const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "損失曲線與目前位置", style: "display:block;width:100%;min-width:520px;max-width:760px;cursor:crosshair" });
-      const mini = s("svg", { viewBox: `0 0 ${W} 130`, role: "img", "aria-label": "損失隨步數的變化", style: "display:block;width:100%;min-width:520px;max-width:760px" });
-      const miniWrap = h("div", null, h("p", { class: "field__label" }, "損失隨步數的變化"), h("div", { class: "scroll-x" }, mini));
+      const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": t("svgAria"), style: "display:block;width:100%;min-width:520px;max-width:760px;cursor:crosshair" });
+      const mini = s("svg", { viewBox: `0 0 ${W} 130`, role: "img", "aria-label": t("miniLabel"), style: "display:block;width:100%;min-width:520px;max-width:760px" });
+      const miniWrap = h("div", null, h("p", { class: "field__label" }, t("miniLabel")), h("div", { class: "scroll-x" }, mini));
 
       svg.addEventListener("click", (e) => {
         const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
@@ -86,15 +85,15 @@ Atlas.define("gd", {
           g.append(s("text", { x: sx(x), y: H - M.b + 16, "text-anchor": "middle", "font-size": 11, class: "t-mono t-muted", text: x < 0 ? "−" + -x : x }));
         }
         g.append(s("line", { x1: M.l, x2: W - M.r, y1: sy(0), y2: sy(0), stroke: "var(--line-strong)" }));
-        g.append(s("text", { x: W - M.r, y: H - 4, "text-anchor": "end", "font-size": 12, class: "t-muted", text: "參數 w" }));
-        g.append(s("text", { x: sx(OPT), y: M.t + 12, "text-anchor": "middle", "font-size": 12.5, class: "t-muted t-halo", text: "損失 L(w) = (w − 1)²" }));
+        g.append(s("text", { x: W - M.r, y: H - 4, "text-anchor": "end", "font-size": 12, class: "t-muted", text: t("axisW") }));
+        g.append(s("text", { x: sx(OPT), y: M.t + 12, "text-anchor": "middle", "font-size": 12.5, class: "t-muted t-halo", text: t("curveLabel") }));
         // curve
         let d = "";
         for (let i = 0; i <= 200; i++) { const w = X0 + (i / 200) * (X1 - X0); d += (i ? "L" : "M") + sx(w).toFixed(1) + "," + sy(L(w)).toFixed(1); }
         g.append(s("path", { d, fill: "none", stroke: "var(--seq-hi)", "stroke-width": 2.5 }));
         // minimum marker
         g.append(s("line", { x1: sx(OPT), x2: sx(OPT), y1: sy(0), y2: sy(0) - 8, stroke: "var(--ok)", "stroke-width": 2 }));
-        g.append(s("text", { x: sx(OPT), y: sy(2.6), "text-anchor": "middle", "font-size": 11.5, fill: "var(--ok)", text: "谷底 w = 1" }));
+        g.append(s("text", { x: sx(OPT), y: sy(2.6), "text-anchor": "middle", "font-size": 11.5, fill: "var(--ok)", text: t("minLabel") }));
         svg.append(g);
 
         // clip region
@@ -125,9 +124,9 @@ Atlas.define("gd", {
         svg.append(pg);
         if (isFinite(w) && (w < X0 || w > X1)) {
           const right = w > X1;
-          svg.append(s("text", { x: right ? W - M.r - 4 : M.l + 4, y: M.t + 30, "text-anchor": right ? "end" : "start", "font-size": 13, "font-weight": 700, class: "t-halo", fill: "var(--bad)", text: right ? "球飛出畫面 →" : "← 球飛出畫面" }));
+          svg.append(s("text", { x: right ? W - M.r - 4 : M.l + 4, y: M.t + 30, "text-anchor": right ? "end" : "start", "font-size": 13, "font-weight": 700, class: "t-halo", fill: "var(--bad)", text: right ? t("flyRight") : t("flyLeft") }));
         }
-        if (hist.length === 1) svg.append(s("text", { x: W - M.r - 4, y: sy(4), "text-anchor": "end", "font-size": 12, class: "t-muted", text: "點曲線可改變起點" }));
+        if (hist.length === 1) svg.append(s("text", { x: W - M.r - 4, y: sy(4), "text-anchor": "end", "font-size": 12, class: "t-muted", text: t("clickCurve") }));
         drawMini();
       }
 
@@ -143,7 +142,7 @@ Atlas.define("gd", {
         mini.append(s("line", { x1: m.l, x2: m.l, y1: m.t, y2: py(0), stroke: "var(--line-strong)" }));
         mini.append(s("text", { x: m.l - 6, y: m.t + 8, "text-anchor": "end", "font-size": 10.5, class: "t-mono t-muted", text: ymax >= 1e4 ? ymax.toExponential(0) : fmt(ymax, ymax < 10 ? 1 : 0) }));
         mini.append(s("text", { x: m.l - 6, y: py(0) + 4, "text-anchor": "end", "font-size": 10.5, class: "t-mono t-muted", text: "0" }));
-        mini.append(s("text", { x: MW - m.r, y: MH - 6, "text-anchor": "end", "font-size": 11, class: "t-muted", text: `步數（0〜${n}）` }));
+        mini.append(s("text", { x: MW - m.r, y: MH - 6, "text-anchor": "end", "font-size": 11, class: "t-muted", text: t("miniAxis", { n }) }));
         let d = "";
         ls.forEach((v, i) => { d += (i ? "L" : "M") + px(i).toFixed(1) + "," + py(v).toFixed(1); });
         mini.append(s("path", { d, fill: "none", stroke: "var(--hot)", "stroke-width": 2 }));
@@ -153,30 +152,30 @@ Atlas.define("gd", {
       function updateText() {
         const w = hist[hist.length - 1], n = hist.length - 1, r = ratio();
         const dist = Math.abs(w - OPT);
-        if (!isFinite(w) || Math.abs(w) > 1e6) setStatus("bad", `發散：第 ${n} 步時 w 已經大到無法顯示`);
-        else if (dist < 0.005) setStatus("ok", `已到谷底：共走了 ${n} 步`);
-        else if (r < -1) setStatus("bad", n ? "發散：跨過谷底後落得更遠，越彈越遠" : "這個學習率會發散，按「走一步」看看");
-        else if (r === -1) setStatus("warn", "在谷底兩側來回彈跳，永遠停不下來");
-        else if (r < 0) setStatus("warn", n ? "震盪：每步都跨過谷底，但越跨越短，最後仍會收斂" : "這個學習率會跨過谷底來回震盪");
-        else if (r >= 0.85) setStatus("warn", `前進緩慢：第 ${n} 步，離谷底還有 ${fmt(dist)}`);
-        else setStatus("info", n ? `穩定往谷底前進：第 ${n} 步，離谷底 ${fmt(dist)}` : "按「走一步」開始");
+        if (!isFinite(w) || Math.abs(w) > 1e6) setStatus("bad", t("s1Overflow", { n }));
+        else if (dist < 0.005) setStatus("ok", t("s1Done", { n }));
+        else if (r < -1) setStatus("bad", n ? t("s1Diverge") : t("s1DivergeIdle"));
+        else if (r === -1) setStatus("warn", t("s1Bounce"));
+        else if (r < 0) setStatus("warn", n ? t("s1Osc") : t("s1OscIdle"));
+        else if (r >= 0.85) setStatus("warn", t("s1Slow", { n, dist: fmt(dist) }));
+        else setStatus("info", n ? t("s1Steady", { n, dist: fmt(dist) }) : t("statusIdle"));
         hint.textContent = "";
 
         if (!isFinite(w) || Math.abs(w) > 1e6 || dist < 0.005) {
-          calc.innerHTML = `<span class="calc-row"><span class="k">目前位置</span> w = ${isFinite(w) ? fmt(w, 3) : "—"}　<span class="k">損失</span> L = ${isFinite(w) ? fmt(L(w), 4) : "—"}</span>`;
+          calc.innerHTML = `<span class="calc-row"><span class="k">${t("calcPosK")}</span> w = ${isFinite(w) ? fmt(w, 3) : "—"}　<span class="k">${t("calcLossK")}</span> L = ${isFinite(w) ? fmt(L(w), 4) : "—"}</span>`;
         } else {
           const m = dL(w), step = -lr * m, wn = w + step;
           calc.innerHTML =
-            `<span class="calc-row"><span class="k">第 ${n} 步　目前位置</span> w = <b>${fmt(w, 3)}</b>　<span class="k">損失</span> L = ${fmt(L(w), 3)}</span>` +
-            `<span class="calc-row"><span class="k">斜率（梯度）</span> dL/dw = 2 × (w − 1) = 2 × ${fmtP(w - OPT, 3)} = <span class="${m < 0 ? "n" : "p"}">${fmt(m, 3)}</span></span>` +
-            `<span class="calc-row"><span class="k">這一步移動</span> −η × 斜率 = −${fmt(lr, 3)} × ${fmtP(m, 3)} = <span class="hl">${fmt(step, 3, true)}</span></span>` +
-            `<span class="calc-row"><span class="k">下一個位置</span> w = ${fmt(w, 3)} ${step < 0 ? "−" : "+"} ${fmt(Math.abs(step), 3)} = <b>${fmt(wn, 3)}</b></span>`;
+            `<span class="calc-row"><span class="k">${t("calcStepPosK", { n })}</span> w = <b>${fmt(w, 3)}</b>　<span class="k">${t("calcLossK")}</span> L = ${fmt(L(w), 3)}</span>` +
+            `<span class="calc-row"><span class="k">${t("calcSlopeK")}</span> dL/dw = 2 × (w − 1) = 2 × ${fmtP(w - OPT, 3)} = <span class="${m < 0 ? "n" : "p"}">${fmt(m, 3)}</span></span>` +
+            `<span class="calc-row"><span class="k">${t("calcMoveK")}</span> ${t("calcMoveSym")} = −${fmt(lr, 3)} × ${fmtP(m, 3)} = <span class="hl">${fmt(step, 3, true)}</span></span>` +
+            `<span class="calc-row"><span class="k">${t("calcNextK")}</span> w = ${fmt(w, 3)} ${step < 0 ? "−" : "+"} ${fmt(Math.abs(step), 3)} = <b>${fmt(wn, 3)}</b></span>`;
         }
-        note.innerHTML = `這條曲線上，每走一步，離谷底的距離都變成原本的 |1 − 2η| = <b class="mono">${fmt(Math.abs(r), 2)}</b> 倍${r < 0 ? "，而且換到谷底另一側" : ""}。${Math.abs(r) < 1 ? "小於 1 才會越來越近。" : "大於或等於 1，所以不會靠近。"}`;
+        note.innerHTML = t("note1d", { r: fmt(Math.abs(r), 2), flip: r < 0, near: Math.abs(r) < 1 });
       }
 
       const api = {
-        presets: [["太小", 0.05], ["適中", 0.3], ["偏大", 0.9], ["太大", 1.05]],
+        presets: [["presetSmall", 0.05], ["presetGood", 0.3], ["presetBig", 0.9], ["presetHuge", 1.05]],
         slider: { min: 0.01, max: 1.2, step: 0.01 },
         get lr() { return lr; },
         show() { view.replaceChildren(svg); extra.replaceChildren(miniWrap); draw(); updateText(); },
@@ -202,17 +201,17 @@ Atlas.define("gd", {
           g: (x, y) => [x, 10 * y],
           gText: "(x, 10y)",
           box: [-6, 6, -3, 3], start: [-5, 2.4],
-          presets: [["太小", 0.02], ["適中", 0.1], ["偏大", 0.185], ["太大", 0.205]],
+          presets: [["presetSmall", 0.02], ["presetGood", 0.1], ["presetBig", 0.185], ["presetHuge", 0.205]],
           slider: { min: 0.005, max: 0.25, step: 0.005 }, lr: 0.185,
           formula: "L(x, y) = (x² + 10y²) ÷ 2",
-          marks: [{ x: 0, y: 0, label: "谷底", kind: "global" }],
+          marks: [{ x: 0, y: 0, label: t("markValley"), kind: "global" }],
         },
         twin: {
           f: (x, y) => (x * x - 1) ** 2 + 0.3 * x + y * y,
           g: (x, y) => [4 * x * (x * x - 1) + 0.3, 2 * y],
           gText: "(4x(x² − 1) + 0.3, 2y)",
           box: [-2, 2, -1, 1], start: [1.7, 0.8],
-          presets: [["太小", 0.01], ["適中", 0.05], ["偏大", 0.25], ["太大", 0.3]],
+          presets: [["presetSmall", 0.01], ["presetGood", 0.05], ["presetBig", 0.25], ["presetHuge", 0.3]],
           slider: { min: 0.005, max: 0.35, step: 0.005 }, lr: 0.05,
           formula: "L(x, y) = (x² − 1)² + 0.3x + y²",
           marks: null, // 由數值求出
@@ -222,15 +221,15 @@ Atlas.define("gd", {
       (function () {
         const root = (x) => { for (let i = 0; i < 60; i++) x -= (4 * x ** 3 - 4 * x + 0.3) / (12 * x * x - 4); return x; };
         SURF.twin.marks = [
-          { x: root(-1.1), y: 0, label: "大域最適解", kind: "global" },
-          { x: root(1.1), y: 0, label: "局所最適解", kind: "local" },
-          { x: root(0.05), y: 0, label: "鞍点", kind: "saddle" },
+          { x: root(-1.1), y: 0, label: t("markGlobal"), kind: "global" },
+          { x: root(1.1), y: 0, label: t("markLocal"), kind: "local" },
+          { x: root(0.05), y: 0, label: t("markSaddle"), kind: "saddle" },
         ];
       })();
 
       let key = "valley", S = SURF[key], lr = S.lr, start = S.start.slice(), hist = [start.slice()];
       const wrap = h("div", { style: { position: "relative", width: "100%", maxWidth: "760px", margin: "0 auto" } });
-      const canvas = h("canvas", { "aria-label": "損失的等高線圖與移動路徑", role: "img", style: { display: "block", width: "100%", touchAction: "manipulation", cursor: "crosshair", borderRadius: "8px", border: "1px solid var(--line)" } });
+      const canvas = h("canvas", { "aria-label": t("canvasAria"), role: "img", style: { display: "block", width: "100%", touchAction: "manipulation", cursor: "crosshair", borderRadius: "8px", border: "1px solid var(--line)" } });
       wrap.append(canvas);
       const legend = h("div", { class: "hint" });
       let bg = null, cssW = 0, cssH = 0, dpr = 1;
@@ -309,7 +308,7 @@ Atlas.define("gd", {
         c.beginPath(); c.arc(tx(start[0]), ty(start[1]), 9, 0, Math.PI * 2); c.lineWidth = 1.5; c.strokeStyle = ink; c.setLineDash([3, 3]); c.stroke(); c.setLineDash([]);
         c.font = `12px ${font}`; c.textAlign = "left"; c.fillStyle = ink; c.lineWidth = 4; c.strokeStyle = panel;
         c.strokeText(S.formula, 8, 18); c.fillText(S.formula, 8, 18);
-        if (hist.length === 1) { c.textAlign = "right"; c.strokeText("點圖可改變起點", cssW - 8, cssH - 10); c.fillText("點圖可改變起點", cssW - 8, cssH - 10); }
+        if (hist.length === 1) { c.textAlign = "right"; c.strokeText(t("clickMap"), cssW - 8, cssH - 10); c.fillText(t("clickMap"), cssW - 8, cssH - 10); }
       }
       canvas.addEventListener("click", (e) => {
         const r = canvas.getBoundingClientRect();
@@ -325,31 +324,31 @@ Atlas.define("gd", {
 
       function updateText() {
         const p = hist[hist.length - 1], n = hist.length - 1;
-        if (out(p)) setStatus("bad", `發散：第 ${n} 步已經衝出地圖`);
+        if (out(p)) setStatus("bad", t("s2Out", { n }));
         else if (gnorm(p) < 1e-3) {
-          if (key === "twin" && p[0] > 0) setStatus("warn", `停在局所最適解（第 ${n} 步）：四周都是上坡，梯度≈0，走不出去`);
-          else setStatus("ok", `抵達${key === "twin" ? "大域最適解" : "谷底"}：共 ${n} 步`);
-        } else if (n === 0) setStatus("info", "按「走一步」開始");
+          if (key === "twin" && p[0] > 0) setStatus("warn", t("s2Local", { n }));
+          else setStatus("ok", t(key === "twin" ? "s2ReachGlobal" : "s2ReachValley", { n }));
+        } else if (n === 0) setStatus("info", t("statusIdle"));
         else if (key === "valley" && n >= 2 && Math.sign(hist[n][1]) !== Math.sign(hist[n - 1][1]) && Math.abs(hist[n][1]) > 1e-3) {
-          setStatus("warn", `鋸齒前進：陡的 y 方向來回彈，緩的 x 方向慢慢走（第 ${n} 步）`);
-        } else setStatus("info", `第 ${n} 步，損失 ${fmt(S.f(p[0], p[1]), 3)}`);
+          setStatus("warn", t("s2Zigzag", { n }));
+        } else setStatus("info", t("s2Step", { n, loss: fmt(S.f(p[0], p[1]), 3) }));
 
         if (out(p) || gnorm(p) < 1e-3) {
-          calc.innerHTML = out(p) ? `<span class="k">位置已超出地圖</span>` :
-            `<span class="calc-row"><span class="k">停在</span> (x, y) = (${fmt(p[0], 3)}, ${fmt(p[1], 3)})　<span class="k">損失</span> ${fmt(S.f(p[0], p[1]), 4)}</span>`;
+          calc.innerHTML = out(p) ? `<span class="k">${t("calcOut")}</span>` :
+            `<span class="calc-row"><span class="k">${t("calcStopK")}</span> (x, y) = (${fmt(p[0], 3)}, ${fmt(p[1], 3)})　<span class="k">${t("calcLossK")}</span> ${fmt(S.f(p[0], p[1]), 4)}</span>`;
         } else {
           const [gx, gy] = S.g(p[0], p[1]);
           const nx = p[0] - lr * gx, ny = p[1] - lr * gy;
           calc.innerHTML =
-            `<span class="calc-row"><span class="k">第 ${n} 步　位置</span> (x, y) = (<b>${fmt(p[0], 3)}</b>, <b>${fmt(p[1], 3)}</b>)　<span class="k">損失</span> ${fmt(S.f(p[0], p[1]), 3)}</span>` +
-            `<span class="calc-row"><span class="k">梯度（各方向的坡度）</span> ${S.gText} = (${fmt(gx, 3)}, ${fmt(gy, 3)})</span>` +
-            `<span class="calc-row"><span class="k">下一個位置</span> (x − η·梯度x, y − η·梯度y) = (${fmt(p[0], 3)} − ${fmt(lr, 3)}×${fmtP(gx, 3)}, ${fmt(p[1], 3)} − ${fmt(lr, 3)}×${fmtP(gy, 3)}) = (<span class="hl">${fmt(nx, 3)}</span>, <span class="hl">${fmt(ny, 3)}</span>)</span>`;
+            `<span class="calc-row"><span class="k">${t("calcStepPos2K", { n })}</span> (x, y) = (<b>${fmt(p[0], 3)}</b>, <b>${fmt(p[1], 3)}</b>)　<span class="k">${t("calcLossK")}</span> ${fmt(S.f(p[0], p[1]), 3)}</span>` +
+            `<span class="calc-row"><span class="k">${t("calcGradK")}</span> ${S.gText} = (${fmt(gx, 3)}, ${fmt(gy, 3)})</span>` +
+            `<span class="calc-row"><span class="k">${t("calcNextK")}</span> ${t("calcNext2Sym")} = (${fmt(p[0], 3)} − ${fmt(lr, 3)}×${fmtP(gx, 3)}, ${fmt(p[1], 3)} − ${fmt(lr, 3)}×${fmtP(gy, 3)}) = (<span class="hl">${fmt(nx, 3)}</span>, <span class="hl">${fmt(ny, 3)}</span>)</span>`;
         }
         if (key === "valley") {
-          note.innerHTML = `顏色越深＝損失越大，線條是等高線。這個山谷 y 方向的坡比 x 方向陡 10 倍：同一個學習率，對 y 方向可能太大（來回彈），對 x 方向卻太小（走很慢）。改良的走法見 <a href="#optim">モーメンタムと Adam</a>；每步只用部分資料估坡度，見 <a href="#sgd">確率的勾配降下法とミニバッチ</a>。`;
+          note.innerHTML = t("noteValley");
           legend.textContent = "";
         } else {
-          note.innerHTML = `這片地形有兩個谷：左邊較深，是<span class="jp">大域最適解</span>（全域最佳解，<span class="en">global optimum</span>）；右邊較淺，是<span class="jp">局所最適解</span>（局部最佳解，<span class="en">local optimum</span>）。兩谷之間的方塊是<span class="jp">鞍点</span>（鞍點，<span class="en">saddle point</span>）：沿 x 是山頂、沿 y 是谷底，梯度同樣是 0。試著從左、右兩側分別出發。`;
+          note.innerHTML = t("noteTwin");
         }
       }
 

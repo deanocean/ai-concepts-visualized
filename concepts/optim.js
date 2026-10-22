@@ -1,19 +1,18 @@
-/* モーメンタムと Adam（シラバス §16）
-   地形：L(x, y) = (x² + k·y²) ÷ 2（k = 10 時和勾配降下法頁的「細長山谷」相同），起點 (−5, 2.4)。
-   五種方法同時走：SGD（這裡梯度用整個地形算，等於勾配降下法）、モーメンタム、AdaGrad、RMSprop、Adam。
+/* 動量與 Adam（大綱 §16）
+   地形：L(x, y) = (x² + k·y²) ÷ 2（k = 10 時和梯度下降法頁的「細長山谷」相同），起點 (−5, 2.4)。
+   五種方法同時走：SGD（這裡梯度用整個地形算，等於梯度下降法）、動量、AdaGrad、RMSprop、Adam。
    調 k（y 方向的陡度）時，AdaGrad／RMSprop／Adam 的路徑完全不變（每個座標的梯度同乘 k，分子分母一起放大），
-   SGD 和モーメンタム則會震盪甚至發散。所有數字即時計算。 */
+   SGD 和動量則會震盪甚至發散。所有數字即時計算。
+   文字在 locales/zh/optim.js、locales/ja/optim.js。 */
 Atlas.define("optim", {
-  lead: `<p>在<a href="#gd">勾配降下法</a>的細長山谷裡，陡的方向來回彈、緩的方向走很慢，而且整個模型只有一個學習率：調大，陡的方向會發散；調小，緩的方向更慢。改良的方向有兩個：<span class="jp">モーメンタム</span>（動量法，<span class="en">momentum</span>）讓移動帶有慣性；AdaGrad、RMSprop 讓<b>每個參數</b>依自己過去的梯度大小自動調步伐。<span class="jp">Adam</span> 把兩者合在一起。</p>`,
-  closing: `モーメンタム靠慣性：來回彈的方向互相抵消、一直同向的方向越走越快。AdaGrad、RMSprop、Adam 把每個參數的梯度除以「它過去有多大」，所以不管某個方向多陡，步伐都差不多大；把山谷調陡，它們的路徑完全不變。AdaGrad 累加全部歷史，步伐只會越來越小；RMSprop 改成只記得最近，Adam 再加上慣性，是現在最常用的預設選擇。`,
-
   mount(bench, ctx) {
     const { h, fmt, fmtP, ui } = Atlas;
+    const { t } = ctx;
     const KS = [1, 3, 10, 30, 100];
     const MAX = 150, EPS = 1e-8, NEAR = 0.05;
     const METHODS = [
       { id: "sgd", name: "SGD", color: "--muted", eta: 0.18, range: [0.005, 0.25, 0.005] },
-      { id: "mom", name: "モーメンタム", color: "--pos", eta: 0.03, range: [0.005, 0.1, 0.005], beta: 0.9 },
+      { id: "mom", name: t("nameMom"), color: "--pos", eta: 0.03, range: [0.005, 0.1, 0.005], beta: 0.9 },
       { id: "ada", name: "AdaGrad", color: "--ok", eta: 1.0, range: [0.1, 3, 0.1] },
       { id: "rms", name: "RMSprop", color: "--hot", eta: 0.1, range: [0.02, 0.5, 0.02], rho: 0.9 },
       { id: "adam", name: "Adam", color: "--neg", eta: 0.3, range: [0.05, 1, 0.05], b1: 0.9, b2: 0.999 },
@@ -73,26 +72,26 @@ Atlas.define("optim", {
       .op-tbl td.bad { color: var(--bad); font-weight: 700; }
       .op-tbl td.ok { color: var(--ok); font-weight: 700; }
     ` }));
-    const focusSeg = ui.seg({ label: "細看哪一個（調學習率、看算式）", value: focus,
+    const focusSeg = ui.seg({ label: t("focusLabel"), value: focus,
       options: METHODS.map((m) => ({ value: m.id, label: m.name })),
       onChange: (v) => { focus = v; syncEta(); draw(); text(); } });
-    const kSlider = ui.slider({ id: "op-k", label: "y 方向比 x 方向陡幾倍 k", min: 0, max: KS.length - 1, step: 1, value: ki, format: (v) => `k = ${KS[v]}`, onInput: (v) => { ki = v; player.pause(); renderBg(); reset(); } });
-    const etaSlider = ui.slider({ id: "op-eta", label: "学習率 η（細看的那一個）", min: 0.005, max: 1, step: 0.005, value: etas[focus], format: (v) => String(Math.round(v * 1000) / 1000), onInput: (v) => { etas[focus] = v; player.pause(); reset(); } });
+    const kSlider = ui.slider({ id: "op-k", label: t("kLabel"), min: 0, max: KS.length - 1, step: 1, value: ki, format: (v) => `k = ${KS[v]}`, onInput: (v) => { ki = v; player.pause(); renderBg(); reset(); } });
+    const etaSlider = ui.slider({ id: "op-eta", label: t("lrLabel"), min: 0.005, max: 1, step: 0.005, value: etas[focus], format: (v) => String(Math.round(v * 1000) / 1000), onInput: (v) => { etas[focus] = v; player.pause(); reset(); } });
     function syncEta() {
       const m = METHODS.find((x) => x.id === focus), inp = bench.querySelector("#op-eta");
       inp.min = m.range[0]; inp.max = m.range[1]; inp.step = m.range[2]; etaSlider.set(etas[focus]);
     }
-    const onlyBtn = ui.btn("只顯示細看的那一個", () => { onlyFocus = !onlyFocus; onlyBtn.textContent = onlyFocus ? "五個都顯示" : "只顯示細看的那一個"; draw(); }, { sm: true });
-    const defBtn = ui.btn("學習率全部還原", () => { METHODS.forEach((m) => (etas[m.id] = m.eta)); syncEta(); player.pause(); reset(); }, { sm: true });
+    const onlyBtn = ui.btn(t("btnOnly"), () => { onlyFocus = !onlyFocus; onlyBtn.textContent = onlyFocus ? t("btnShowAll") : t("btnOnly"); draw(); }, { sm: true });
+    const defBtn = ui.btn(t("btnDefaults"), () => { METHODS.forEach((m) => (etas[m.id] = m.eta)); syncEta(); player.pause(); reset(); }, { sm: true });
 
     const wrap = h("div", { style: { position: "relative", width: "100%", maxWidth: "760px", margin: "0 auto" } });
-    const canvas = h("canvas", { role: "img", "aria-label": "五種最佳化方法在等高線上的路徑", style: { display: "block", width: "100%", cursor: "crosshair", borderRadius: "8px", border: "1px solid var(--line)" } });
+    const canvas = h("canvas", { role: "img", "aria-label": t("canvasAria"), style: { display: "block", width: "100%", cursor: "crosshair", borderRadius: "8px", border: "1px solid var(--line)" } });
     wrap.append(canvas);
     const tbl = h("table", { class: "tbl op-tbl" });
     const player = ui.player(ctx, () => step(), 110);
     const status = h("div", { class: "status" });
     const calc = h("div", { class: "calc" });
-    const chart = Atlas.s("svg", { viewBox: "0 0 640 200", role: "img", "aria-label": "離谷底的距離隨步數的變化", style: "display:block;width:100%;min-width:520px;max-width:760px" });
+    const chart = Atlas.s("svg", { viewBox: "0 0 640 200", role: "img", "aria-label": t("chartAria"), style: "display:block;width:100%;min-width:520px;max-width:760px" });
     const note = h("p", { class: "note" });
 
     bench.append(
@@ -100,14 +99,14 @@ Atlas.define("optim", {
       h("div", { class: "bench__row" }, kSlider.el, etaSlider.el),
       h("div", { class: "scroll-x" }, wrap),
       status,
-      h("div", { class: "bench__row" }, ui.btn("走一步", () => { player.pause(); step(); }, { primary: true }), player.el, ui.btn("重設", () => { player.pause(); reset(); }), onlyBtn, defBtn),
+      h("div", { class: "bench__row" }, ui.btn(t("btnStep"), () => { player.pause(); step(); }, { primary: true }), player.el, ui.btn(t("btnReset"), () => { player.pause(); reset(); }), onlyBtn, defBtn),
       h("div", { class: "scroll-x" }, tbl),
       calc,
-      h("div", null, h("p", { class: "field__label" }, "離谷底的距離（對數刻度）"), h("div", { class: "scroll-x" }, chart)),
+      h("div", null, h("p", { class: "field__label" }, t("chartLabel")), h("div", { class: "scroll-x" }, chart)),
       note,
     );
 
-    /* ---------- 等高線（和勾配降下法頁同一種畫法） ---------- */
+    /* ---------- 等高線（和梯度下降法頁同一種畫法） ---------- */
     let bg = null, cssW = 0, cssH = 0, dpr = 1;
     const tx = (x) => ((x - BOX[0]) / (BOX[1] - BOX[0])) * cssW;
     const ty = (y) => cssH - ((y - BOX[2]) / (BOX[3] - BOX[2])) * cssH;
@@ -185,7 +184,7 @@ Atlas.define("optim", {
       c.font = `12px ${font}`; c.fillStyle = ink; c.lineWidth = 4; c.strokeStyle = panel;
       const ft = `L(x, y) = (x² + ${k()}y²) ÷ 2`;
       c.strokeText(ft, 8, cssH - 10); c.fillText(ft, 8, cssH - 10);
-      if (nStep() === 0) { c.textAlign = "right"; c.strokeText("點圖可改變起點", cssW - 8, cssH - 10); c.fillText("點圖可改變起點", cssW - 8, cssH - 10); }
+      if (nStep() === 0) { c.textAlign = "right"; c.strokeText(t("clickMap"), cssW - 8, cssH - 10); c.fillText(t("clickMap"), cssW - 8, cssH - 10); }
       drawChart();
     }
     canvas.addEventListener("click", (e) => {
@@ -207,9 +206,9 @@ Atlas.define("optim", {
         chart.append(s("text", { x: M.l - 6, y: py(10 ** e) + 4, "text-anchor": "end", "font-size": 10.5, class: "t-mono t-muted", text: e >= 0 ? String(10 ** e) : "0." + "0".repeat(-e - 1) + "1" }));
       }
       chart.append(s("line", { x1: M.l, x2: W - M.r, y1: py(NEAR), y2: py(NEAR), stroke: "var(--ok)", "stroke-dasharray": "5 4" }));
-      chart.append(s("text", { x: W - M.r, y: py(NEAR) - 4, "text-anchor": "end", "font-size": 11, fill: "var(--ok)", class: "t-halo", text: `距離 ${NEAR}（算「到達」）` }));
+      chart.append(s("text", { x: W - M.r, y: py(NEAR) - 4, "text-anchor": "end", "font-size": 11, fill: "var(--ok)", class: "t-halo", text: t("chartNear", { near: NEAR }) }));
       for (let i = 0; i <= MAX; i += 25) chart.append(s("text", { x: px(i), y: H - M.b + 16, "text-anchor": "middle", "font-size": 11, class: "t-mono t-muted", text: i }));
-      chart.append(s("text", { x: W - M.r, y: H - 2, "text-anchor": "end", "font-size": 11, class: "t-muted", text: "步數" }));
+      chart.append(s("text", { x: W - M.r, y: H - 2, "text-anchor": "end", "font-size": 11, class: "t-muted", text: t("chartAxisX") }));
       for (const m of METHODS.filter((x) => x.id !== focus).concat(METHODS.filter((x) => x.id === focus))) {
         if (onlyFocus && m.id !== focus) continue;
         const r = runs[m.id];
@@ -223,44 +222,45 @@ Atlas.define("optim", {
       const n = nStep();
       // 比較表
       tbl.replaceChildren(
-        h("thead", null, h("tr", null, h("th", { class: "l" }, "方法"), h("th", null, "學習率 η"), h("th", null, `到達谷底附近（距離 < ${NEAR}）`), h("th", null, "目前離谷底"))),
+        h("thead", null, h("tr", null, h("th", { class: "l" }, t("thMethod")), h("th", null, t("thLr")), h("th", null, t("thReach", { near: NEAR })), h("th", null, t("thDist")))),
         h("tbody", null, ...METHODS.map((m) => {
           const r = runs[m.id], p = r.pos[r.pos.length - 1], d = Math.hypot(p[0], p[1]);
           return h("tr", { class: m.id === focus ? "is-sel" : null },
             h("td", { class: "l" }, h("span", { class: "op-dot", style: { background: `var(${m.color})` } }), m.name),
             h("td", null, String(etas[m.id])),
-            h("td", { class: r.dead ? "bad" : r.reach != null ? "ok" : null }, r.dead ? `發散（第 ${r.t} 步）` : r.reach != null ? `第 ${r.reach} 步` : n ? "還沒" : "—"),
+            h("td", { class: r.dead ? "bad" : r.reach != null ? "ok" : null }, r.dead ? t("cellDead", { n: r.t }) : r.reach != null ? t("cellReach", { n: r.reach }) : n ? t("cellNotYet") : "—"),
             h("td", null, r.dead ? "—" : fmt(d, 3)));
         })));
       // 狀態
       const dead = METHODS.filter((m) => runs[m.id].dead).map((m) => m.name);
-      if (n === 0) { status.className = "status status--info"; status.textContent = `按「走一步」或「自動播放」：五種方法從同一點同時出發（最多 ${MAX} 步）`; }
-      else if (dead.length) { status.className = "status status--bad"; status.textContent = `${dead.join("、")} 發散了：y 方向太陡，同樣的學習率一步就跨得比谷寬還遠。把 k 調回 10 試試`; }
-      else if (n >= MAX) { status.className = "status status--info"; status.textContent = `已走完 ${MAX} 步`; }
+      if (n === 0) { status.className = "status status--info"; status.textContent = t("statusIdle", { max: MAX }); }
+      else if (dead.length) { status.className = "status status--bad"; status.textContent = t("statusDead", { names: dead.join(t("nameSep")) }); }
+      else if (n >= MAX) { status.className = "status status--info"; status.textContent = t("statusEnd", { max: MAX }); }
       else if (k() <= 10 && runs.sgd.reach != null && METHODS.every((m) => m.id === "sgd" || runs[m.id].reach == null || runs[m.id].reach >= runs.sgd.reach)) {
-        status.className = "status status--warn"; status.textContent = `第 ${n} 步：SGD 的學習率 ${etas.sgd} 剛好是替這個陡度調好的，所以最快到；把 k 調大，看誰撐得住`;
+        status.className = "status status--warn"; status.textContent = t("statusSgd", { n, lr: etas.sgd });
       }
-      else { status.className = "status status--info"; status.textContent = `第 ${n} 步`; }
+      else { status.className = "status status--info"; status.textContent = t("statusStep", { n }); }
       // 算式框
       const r = runs[focus], m = r.m, p = r.pos[r.pos.length - 1];
-      if (r.dead) { calc.innerHTML = `<span class="k">${m.name} 已經發散，位置超出計算範圍</span>`; return; }
+      if (r.dead) { calc.innerHTML = `<span class="k">${t("calcDead", { name: m.name })}</span>`; return; }
       const o = stepOf(r, false), eta = etas[focus], X = ["x", "y"];
-      const rows = [`<span class="calc-row"><span class="k">${m.name}　第 ${n} 步　位置</span> (${fmt(p[0], 3)}, ${fmt(p[1], 3)})　<span class="k">梯度</span> g = (x, ${k()}y) = (${fmt(o.g[0], 3)}, ${fmt(o.g[1], 3)})</span>`];
+      const rows = [`<span class="calc-row"><span class="k">${t("calcPosK", { name: m.name, n })}</span> (${fmt(p[0], 3)}, ${fmt(p[1], 3)})　<span class="k">${t("calcGradK")}</span> g = (x, ${k()}y) = (${fmt(o.g[0], 3)}, ${fmt(o.g[1], 3)})</span>`];
       for (let i = 0; i < 2; i++) {
         const q = o.parts[i], gi = fmtP(o.g[i], 3), c = X[i];
-        let t;
-        if (m.id === "sgd") t = `${c}：移動 = −η·g = −${eta}×${gi} = <span class="hl">${fmt(q.d, 3, true)}</span>`;
-        else if (m.id === "mom") t = `${c}：v = β·v − η·g = ${m.beta}×${fmtP(q.vOld, 3)} − ${eta}×${gi} = <span class="hl">${fmt(q.v, 3)}</span>（移動量就是 v）`;
-        else if (m.id === "ada") t = `${c}：h = h + g² = ${fmt(q.hOld, 3)} + ${gi}² = ${fmt(q.h, 3)}　有效學習率 η÷√h = ${eta}÷${fmt(Math.sqrt(q.h), 3)} = ${fmt(q.eff, 4)}　移動 = −${fmt(q.eff, 4)}×${gi} = <span class="hl">${fmt(q.d, 3, true)}</span>`;
-        else if (m.id === "rms") t = `${c}：h = ρ·h + (1 − ρ)·g² = ${m.rho}×${fmt(q.hOld, 3)} + ${fmt(1 - m.rho, 1)}×${gi}² = ${fmt(q.h, 3)}　有效學習率 η÷√h = ${fmt(q.eff, 4)}　移動 = <span class="hl">${fmt(q.d, 3, true)}</span>`;
-        else t = `${c}：m = ${m.b1}·m + ${fmt(1 - m.b1, 1)}·g = ${fmt(q.m, 3)}，v = ${m.b2}·v + ${fmt(1 - m.b2, 3)}·g² = ${fmt(q.v, 4)}；修正後 m̂ = ${fmt(q.mh, 3)}，v̂ = ${fmt(q.vh, 3)}；移動 = −η·m̂÷√v̂ = −${eta}×${fmtP(q.mh, 3)}÷${fmt(Math.sqrt(q.vh), 3)} = <span class="hl">${fmt(q.d, 3, true)}</span>`;
-        rows.push(`<span class="calc-row">${t}</span>`);
+        let tx;
+        const MV = t("calcMove"), EF = t("calcEff");
+        if (m.id === "sgd") tx = `<span class="k">${c}</span> ${MV} = −η·g = −${eta}×${gi} = <span class="hl">${fmt(q.d, 3, true)}</span>`;
+        else if (m.id === "mom") tx = `<span class="k">${c}</span> v = β·v − η·g = ${m.beta}×${fmtP(q.vOld, 3)} − ${eta}×${gi} = <span class="hl">${fmt(q.v, 3)}</span>${t("calcMomNote")}`;
+        else if (m.id === "ada") tx = `<span class="k">${c}</span> h = h + g² = ${fmt(q.hOld, 3)} + ${gi}² = ${fmt(q.h, 3)}　${EF} η÷√h = ${eta}÷${fmt(Math.sqrt(q.h), 3)} = ${fmt(q.eff, 4)}　${MV} = −${fmt(q.eff, 4)}×${gi} = <span class="hl">${fmt(q.d, 3, true)}</span>`;
+        else if (m.id === "rms") tx = `<span class="k">${c}</span> h = ρ·h + (1 − ρ)·g² = ${m.rho}×${fmt(q.hOld, 3)} + ${fmt(1 - m.rho, 1)}×${gi}² = ${fmt(q.h, 3)}　${EF} η÷√h = ${fmt(q.eff, 4)}　${MV} = <span class="hl">${fmt(q.d, 3, true)}</span>`;
+        else tx = `<span class="k">${c}</span> m = ${m.b1}·m + ${fmt(1 - m.b1, 1)}·g = ${fmt(q.m, 3)}, v = ${m.b2}·v + ${fmt(1 - m.b2, 3)}·g² = ${fmt(q.v, 4)}; ${t("calcCorr")} m̂ = ${fmt(q.mh, 3)}, v̂ = ${fmt(q.vh, 3)}; ${MV} = −η·m̂÷√v̂ = −${eta}×${fmtP(q.mh, 3)}÷${fmt(Math.sqrt(q.vh), 3)} = <span class="hl">${fmt(q.d, 3, true)}</span>`;
+        rows.push(`<span class="calc-row">${tx}</span>`);
       }
-      rows.push(`<span class="calc-row"><span class="k">下一個位置</span> (<b>${fmt(o.next[0], 3)}</b>, <b>${fmt(o.next[1], 3)}</b>)</span>`);
+      rows.push(`<span class="calc-row"><span class="k">${t("calcNextK")}</span> (<b>${fmt(o.next[0], 3)}</b>, <b>${fmt(o.next[1], 3)}</b>)</span>`);
       calc.innerHTML = rows.join("");
     }
 
-    note.innerHTML = `這裡的地形是固定的式子，梯度每次都用整個地形算，所以「SGD」在這裡就是<a href="#gd">勾配降下法</a>；實際訓練時這五種方法都搭配<a href="#sgd">ミニバッチ</a>使用。モーメンタム的慣性也會讓它衝過谷底再折回，所以路徑常繞一大圈才停下。各方法的學習率不同，是因為它們的「一步」定義不同：AdaGrad、RMSprop、Adam 的移動量大約就是 η 本身。β、ρ 用常見的預設值（モーメンタム β = 0.9；RMSprop ρ = 0.9；Adam β₁ = 0.9、β₂ = 0.999），Adam 的 m̂、v̂ 是補正剛開始時 m、v 從 0 起算而偏小的部分。其他改良：<span class="jp">AdaDelta</span> 和 RMSprop 一樣改用最近的梯度，並且連學習率都不用設定；<span class="jp">AdaBound</span>（和它的變形 <span class="jp">AMSBound</span>）替 Adam 的有效學習率加上逐漸收窄的上下限，訓練後期變得像 SGD。學習率、β 這類訓練前由人決定的值叫<span class="jp">ハイパーパラメータ</span>（超參數，<span class="en">hyperparameter</span>），常用<span class="jp">グリッドサーチ</span>（把候選值的組合全部試一遍）或<span class="jp">ランダムサーチ</span>（隨機抽組合來試）尋找。k = 10 時 SGD 最快、k 一調大卻發散，這種「沒有一種方法在所有問題上都最好」的事實叫<span class="jp">ノーフリーランチの定理</span>（沒有免費午餐定理，<span class="en">no free lunch theorem</span>）：方法的優劣要看問題而定。`;
+    note.innerHTML = t("note");
 
     syncEta();
     reset();
