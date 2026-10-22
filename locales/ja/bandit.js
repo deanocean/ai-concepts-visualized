@@ -1,0 +1,91 @@
+/* バンディットと ε-greedy 方策（concepts/bandit.js）の日本語テキスト
+   - である調。key は locales/zh/bandit.js と一致させる */
+Atlas.strings("ja", "bandit", {
+  lead: `<p>目の前に 5 台のスロットマシンがあり、当たる確率はそれぞれ違うが、どれが一番よいかは分からない。プレイしながら推測するしかない。「今いちばんよさそうな台」を選び続けることを<span class="term">活用</span>（<span class="en">exploitation</span>）というが、本当はもっとよい台を見逃すかもしれない。いろいろな台を試し続けることを<span class="term">探索</span>（<span class="en">exploration</span>）というが、悪い台に回数を浪費してしまう。このような「試しながら選ぶ」問題を<span class="term">多腕バンディット問題</span>（<span class="en">multi-armed bandit problem</span>）といい、その解き方を総称して<span class="term">バンディットアルゴリズム</span>（<span class="en">bandit algorithm</span>）という。</p>`,
+  closing: `活用だけ（ε = 0）だと、最初に運が悪いと劣った台にずっと捕まってしまうことがある。ε が大きいほど捕まりにくいが、常に ε の割合の回数がでたらめな試行に費やされる。<span class="term">UCB 方策</span>（<span class="en">UCB policy</span>）は「試した回数が少なく、まだ確信がない」台にボーナスを与える。十分に試せばボーナスは自然に小さくなり、探索もそれにつれて減る。この台の組では、UCB 方策が平均して最も多くの報酬を得ており、200 回の実行で一度も捕まらなかった。`,
+
+  /* 操作 */
+  modeLabel: "表示",
+  modeOne: "① 1 回の実行を順に見る",
+  modeCmp: "② 6 種類の方策を比べる（各 200 回の平均）",
+  stratLabel: "方策",
+  stratEps: "ε-greedy 方策",
+  stratUcb: "UCB 方策",
+  epsLabel: "ε（でたらめに試す確率）",
+  eps0: "0（活用のみ）",
+  eps1: "1（でたらめのみ）",
+  btnSeed: "乱数を変える",
+  btnPlay: "▶ 自動プレイ",
+  btnPause: "❚❚ 一時停止",
+  btnPlayDone: "✓ 2000 回プレイ完了",
+  btnOne: "1 回引く",
+  btnFf: "⏭ 2000 回まで早送り",
+  btnReset: "リセット",
+  btnCmp: "▶ 比較開始",
+  btnCmpRun: "計算中…",
+  btnCmpDone: "✓ 比較完了",
+
+  /* 図（読み上げ用） */
+  mAria: "5 台のスロットマシンの推定値",
+  curveAria: "最良の台 E を選んだ割合",
+  cmpAria: "6 種類の方策が最良の台を選んだ割合（平均）",
+
+  /* 図の説明 */
+  capCurve: "ここまでに最良の台 E を選んだ割合（点線＝でたらめに選んだ場合の 20%）",
+  capCmp: "200 回の平均：t 回目までに最良の台 E を選んだ割合",
+  played: "{n} 回",
+  win: "当たり +1",
+  lose: "はずれ",
+  keyEst: `<span><i style="background:var(--accent)"></i>推定値＝この台のこれまでの平均報酬</span>`,
+  keyUcb: `<span><i style="background:var(--hot-soft);border:1px dashed var(--hot)"></i>UCB のボーナス（次の選択で使う）</span>`,
+  keyTrue: `<span><span class="bd-sw" style="border-top-style:dashed;border-top-width:2px;color:var(--ink)"></span>本当の当たる確率（エージェントは知らない）</span>`,
+  axis: "回数",
+
+  /* ステータス */
+  head: "{t} 回目：報酬の合計 {tot}（1 回あたり平均 {avg}）。最良の台 E を {n} 回選んだ（{pct}%）",
+  headRun: "{t} 回目（自動プレイ中）：報酬の合計 {tot}（1 回あたり平均 {avg}）。最良の台 E を {n} 回選んだ（{pct}%）",
+  statusIdle: "まだ始めていない。どの台もまだプレイしておらず、推定値は空である。「1 回引く」で 1 回ずつ見るか、「▶ 自動プレイ」で 2000 回続けてプレイしてみよう（約 8 秒）",
+  tailInit: "。まず各台を 1 回ずつ引いて、比べられる推定値を作る",
+  tailMost: "。今いちばん多くプレイしているのは {m}",
+  tailRandom: "。完全にでたらめに選んでいるので、どの台も約 20% で、学んだ推定値がまったく使われていない",
+  tailStuck: "。捕まった：ほとんどの時間 {m} をプレイしている（本当の確率 {p}）",
+  tailStuckWhy: "。捕まった：ほとんどの時間 {m} をプレイしている（本当の確率 {p}）。E の推定値は {qe}（{ne} 回プレイ）で、{m} の {qm} より低いため、E にはめったに戻らない",
+  tailHalf: "。E を最も多くプレイしているが、まだ半分に届かない",
+  tailGood: "。ほとんどの時間、最良の E をプレイしている",
+  tailEpsLeft: "。E は見つけたが、ε = {eps} のでたらめな試行が最後まで続いている",
+  tailUcbLeft: "。E は見つけたが、序盤に探索でかなりの回数を使った",
+
+  /* 計算式 */
+  ruleK: "ルール",
+  ruleUcb: "まず各台を 1 回ずつ引く。その後は毎回「推定値 + c × √(ln t ÷ n)」が最大の台を選ぶ（t＝これまでのプレイ回数、n＝その台のプレイ回数、c = 1）",
+  ruleEps: "まず各台を 1 回ずつ引く。その後は毎回 0〜1 の乱数 u を引き、u < ε ならランダムに 1 台選び（探索）、そうでなければ推定値が最も高い台を選ぶ（活用）",
+  estK: "推定値",
+  est: "この台のこれまでの平均報酬。当たりは 1、はずれは 0",
+  stepK: "{t} 回目",
+  whyInit: `まず各台を 1 回ずつ引く → <span class="hl">{name}</span> を引く`,
+  ucbK: "{t} 回目：スコア = 推定値 + 1 × √(ln {t1} ÷ n)",
+  ucbPick: `スコアが最大 → <span class="hl">{name}</span> を引く`,
+  ucbPickBonus: `スコアが最大 → <span class="hl">{name}</span> を引く（推定値は最大ではないが、ボーナスで押し上げられた。試した回数が少ないためである）`,
+  whyExplore: `乱数 u = {u} &lt; ε = {eps} → 探索：ランダムに <span class="hl">{name}</span> を選んだ`,
+  whyExploit: `乱数 u = {u} ≥ ε = {eps} → 活用：推定値が最も高い <span class="hl">{name}</span> を選ぶ（{q}）`,
+  whyExploitTie: `乱数 u = {u} ≥ ε = {eps} → 活用：推定値が最も高い <span class="hl">{name}</span> を選ぶ（{q}。{ties} 台が同点なのでランダムに選んだ）`,
+  updK: "推定値の更新",
+  updFirst: `{name} を初めてプレイし、報酬 {r} → 推定値 = <span class="hl">{q}</span>`,
+  updAvgK: "推定値の更新（平均）",
+  updAvg: `{name}：{q0} + ({r} − {q0}) ÷ {n} = <span class="hl">{q1}</span>`,
+
+  /* ② 比較 */
+  serE0: "ε = 0（活用のみ）",
+  serE1: "ε = 1（でたらめのみ）",
+  serUcb: "UCB 方策",
+  thStrat: "方策",
+  thTot: "平均の報酬合計（2000 回）",
+  thLast: "最後の 200 回で E を選んだ割合",
+  thStuck: "捕まった回数（E が半分未満）",
+  tfootE: "常に E をプレイした場合の期待値",
+  cmpIdle: "まだ始めていない。「▶ 比較開始」を押すと、6 種類の方策をそれぞれ 200 回（1 回あたり 2000 プレイ、シード固定）実行し、結果を平均する（約 1〜2 秒）",
+  cmpRun: "計算中…（{d} / {n} 回）",
+  cmpDone: "{label} の平均報酬合計が最も高い（{avg}）。ε = 0 は {stuck} 回劣った台に捕まった。ε = 1 は完全にでたらめなので {e1} にとどまる",
+
+  note: `当たる確率はデモ用に設定した値である。「まず各台を 1 回ずつ引く」はよくある始め方で、このページでは公平に比べるため両方の方策でそうしている。UCB は <span class="en">Upper Confidence Bound</span>（信頼上限）の略である。ボーナス項 √(ln t ÷ n) はプレイ回数が少ない（n が小さい）台ほど大きいため、「不確かな台に対して楽観的になる」ともいわれる。標準的な UCB1 は c = √2 を使うが、このページでは c = 1 にしている（この台の組ではこちらの成績がよい）。c が大きいほど探索を好む。スロットマシンでは「どの台を選ぶか」という決定しかなく、選んでも状況は変わらない。行動のたびにその後の状況まで変わる場合（例えば迷路を歩く）には、<a href="#qlearn">Q 学習</a>のような手法が必要になる。ε-greedy 方策は Q 学習が訓練中に行動を選ぶ標準的な方法でもある。実際の応用例として、Web サイトでどの広告を表示するか、どの記事を勧めるかを、クリック率を見ながら調整することが挙げられる。`,
+});

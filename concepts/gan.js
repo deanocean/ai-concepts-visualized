@@ -3,16 +3,16 @@
    生成器 G：雜訊 z（2 維標準常態）→ 16 → 16 → 2（Leaky ReLU）；識別器 D：2 → 16 → 16 → 1（Leaky ReLU，輸出 Sigmoid）。
    一輪：先更新 D 一次（32 個真 + 32 個假），再更新 G（標準 1 次；失敗示範 10 次）。Adam η=0.002、β₁=0.5。
    G 的損失用 −ln D(G(z))。標準 3000 輪、失敗示範 300 輪（兩者 G 都更新 3000 次）。
-   畫面：底色＝D 判斷「是真資料」的機率；橘色方塊＝300 個固定 z 生成的點；箭頭＝生成器被推的方向（∂ ln D / ∂x）。 */
+   畫面：底色＝D 判斷「是真資料」的機率；橘色方塊＝300 個固定 z 生成的點；箭頭＝生成器被推的方向（∂ ln D / ∂x）。
+   文字在 locales/zh/gan.js、locales/ja/gan.js。 */
 (function () {
   const R2 = 2;
   Atlas.define("gan", {
-    lead: `<p>想讓電腦產生「看起來像真的」的資料，卻很難直接寫出「像真的」的評分標準。<span class="jp">敵対的生成ネットワーク</span>（生成對抗網路，<span class="en">generative adversarial network, GAN</span>）讓兩個網路互相較勁：<span class="jp">生成器</span>（generator）把亂數變成假資料，<span class="jp">識別器</span>（discriminator）判斷資料是真是假。識別器越會抓，生成器就被逼得越像。</p>`,
-    closing: `識別器學著分辨真假，生成器則順著識別器的判斷，把假資料往「更像真的」方向推；兩者輪流更新，理想的終點是識別器到處都只能猜 0.5。兩邊要勢均力敵：讓生成器一次跑太多步，它容易把所有點擠到識別器當下最相信的地方，再一起被趕走，這就是<span class="jp">モード崩壊</span>（模式崩潰，mode collapse）。`,
 
     mount(bench, ctx) {
       const { h, s, fmt, ui, nn } = Atlas;
       const { MLP, rng, gauss } = nn;
+      const { t } = ctx;
       let data = "circle", sched = "std", seed = 1, follow = true, viewR = 0, sel = 0, curTotal = 3000;
       const runs = {};
 
@@ -41,30 +41,30 @@
       }
 
       /* ---------- 控制 ---------- */
-      const dSeg = ui.seg({ label: "真資料", value: data, options: [{ value: "circle", label: "環狀" }, { value: "ring8", label: "八團" }], onChange: (v) => { data = v; ensure(); } });
-      const sSeg = ui.seg({ label: "更新方式", value: sched, options: [{ value: "std", label: "輪流各更新 1 次" }, { value: "g10", label: "生成器 10 次、識別器 1 次" }], onChange: (v) => { sched = v; ensure(); } });
-      const seedBtn = ui.btn("換一組初始值", () => { cur().loop.pause(); seed = (seed % 5) + 1; ensure(); }, { sm: true });
-      const runBtn = ui.btn("▶ 開始訓練", () => { const R = cur(); R.loop.running ? R.loop.pause() : (follow = true, R.loop.start()); refreshBtns(); }, { primary: true });
-      const oneBtn = ui.btn("前進 1 輪", () => { const R = cur(); R.loop.pause(); follow = true; R.step1(); show(); refreshBtns(); });
-      const ffBtn = ui.btn("⏭ 快轉到結束", () => { follow = true; cur().loop.fastForward(); refreshBtns(); });
-      const prog = ui.slider({ id: "gn-r", label: "查看第幾輪的狀態", min: 0, max: 3000, step: 1, value: 0, format: (v) => v + " / " + curTotal,
+      const dSeg = ui.seg({ label: t("dLabel"), value: data, options: [{ value: "circle", label: t("dCircle") }, { value: "ring8", label: t("dRing8") }], onChange: (v) => { data = v; ensure(); } });
+      const sSeg = ui.seg({ label: t("sLabel"), value: sched, options: [{ value: "std", label: t("sStd") }, { value: "g10", label: t("sG10") }], onChange: (v) => { sched = v; ensure(); } });
+      const seedBtn = ui.btn(t("btnSeed"), () => { cur().loop.pause(); seed = (seed % 5) + 1; ensure(); }, { sm: true });
+      const runBtn = ui.btn(t("btnRun"), () => { const R = cur(); R.loop.running ? R.loop.pause() : (follow = true, R.loop.start()); refreshBtns(); }, { primary: true });
+      const oneBtn = ui.btn(t("btnOne"), () => { const R = cur(); R.loop.pause(); follow = true; R.step1(); show(); refreshBtns(); });
+      const ffBtn = ui.btn(t("btnFf"), () => { follow = true; cur().loop.fastForward(); refreshBtns(); });
+      const prog = ui.slider({ id: "gn-r", label: t("progLabel"), min: 0, max: 3000, step: 1, value: 0, format: (v) => v + " / " + curTotal,
         onInput: (v) => { const R = cur(); const sn = R.snaps.filter((q) => q.r <= v).pop(); const last = R.snaps[R.snaps.length - 1]; follow = sn === last; viewR = sn.r; show(); } });
 
       const status = h("div", { class: "status" }), calc = h("div", { class: "calc" }), note = h("p", { class: "note" });
-      const plane = nn.canvas(360, 360, "平面：真資料、生成資料、識別器的判斷"); plane.el.classList.add("gn-hit");
-      const dSvg = s("svg", { role: "img", "aria-label": "識別器給真資料與生成資料的平均機率" }), dCap = h("div", { class: "gn-cap" });
-      const cSvg = s("svg", { viewBox: "0 0 360 170", role: "img", "aria-label": "生成的點落在 8 個方向的數量" });
+      const plane = nn.canvas(360, 360, t("planeAria")); plane.el.classList.add("gn-hit");
+      const dSvg = s("svg", { role: "img", "aria-label": t("dAria") }), dCap = h("div", { class: "gn-cap" });
+      const cSvg = s("svg", { viewBox: "0 0 360 170", role: "img", "aria-label": t("covAria") });
       bench.append(
         h("div", { class: "bench__row" }, dSeg.el, sSeg.el, seedBtn),
         h("div", { class: "bench__row" }, runBtn, oneBtn, ffBtn, prog.el),
         status,
         h("div", { class: "gn-row" },
           h("div", { class: "gn-fig", style: { flexBasis: "340px" } },
-            h("div", { class: "gn-cap" }, "點一個橘色方塊，看它的計算"), plane.el,
-            h("div", { class: "gn-key", html: `<span><i style="background:var(--pos);border-radius:50%"></i>真資料</span><span><i style="background:var(--hot)"></i>生成器做的假資料</span><span>→ 生成器被推的方向</span><span><i style="background:var(--pos-soft);border:1px solid var(--pos)"></i>識別器認為「真」</span><span><i style="background:var(--hot-soft);border:1px solid var(--hot)"></i>認為「假」</span>` })),
+            h("div", { class: "gn-cap" }, t("capPlane")), plane.el,
+            h("div", { class: "gn-key", html: t("key") })),
           h("div", { class: "gn-fig" },
             dCap, dSvg,
-            h("div", { class: "gn-cap", style: { marginTop: "10px" } }, "1000 個生成點落在哪個方向（深色＝落在真資料附近；虛線＝平均分配的 125 個）"), cSvg)),
+            h("div", { class: "gn-cap", style: { marginTop: "10px" } }, t("capCov")), cSvg)),
         calc, note);
 
       /* ---------- 訓練 ---------- */
@@ -79,7 +79,7 @@
         R.step1 = () => {
           if (R.round >= total) return;
           let sr = 0, sf = 0;
-          for (let b = 0; b < BS; b++) {   // 識別器：真的判 1、假的判 0
+          for (let b = 0; b < BS; b++) {   // 判別器：真的判 1、假的判 0
             const p = D.forward(real())[0]; sr += p; D.backward([p - 1], true);
             f.set(G.forward([gauss(r), gauss(r)])); const q = D.forward(f)[0]; sf += q; D.backward([q], true);
           }
@@ -107,7 +107,7 @@
       }
       function refreshBtns() {
         const R = cur();
-        runBtn.textContent = R.loop.running ? "❚❚ 暫停" : R.loop.finished ? "✓ 訓練完成" : R.round ? "▶ 繼續訓練" : "▶ 開始訓練";
+        runBtn.textContent = t(R.loop.running ? "btnPause" : R.loop.finished ? "btnDone" : R.round ? "btnResume" : "btnRun");
         runBtn.disabled = ffBtn.disabled = oneBtn.disabled = R.loop.finished;
       }
 
@@ -136,8 +136,8 @@
       function drawPlane() {
         const c = col(), g = plane.begin(), N = V.N, cs = 320 / N;
         for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
-          const d = V.grid[j * N + i], t = Math.min(1, Math.abs(d - 0.5) * 2) * 0.6, tgt = d >= 0.5 ? c.pos : c.hot;
-          g.fillStyle = `rgb(${c.panel.map((v, k) => Math.round(v + (tgt[k] - v) * t)).join(",")})`;
+          const d = V.grid[j * N + i], tt = Math.min(1, Math.abs(d - 0.5) * 2) * 0.6, tgt = d >= 0.5 ? c.pos : c.hot;
+          g.fillStyle = `rgb(${c.panel.map((v, k) => Math.round(v + (tgt[k] - v) * tt)).join(",")})`;
           g.fillRect(30 + i * cs, 10 + j * cs, cs + 0.5, cs + 0.5);
         }
         g.strokeStyle = c.line; g.lineWidth = 1; g.font = font(10); g.fillStyle = c.muted; g.textAlign = "center";
@@ -176,13 +176,13 @@
       function drawD() {
         const R = cur(), W = 20, sm = (j) => { const out = []; for (let i = 0; i + W <= R.hist.length; i += W) { let a = 0; for (let k = i; k < i + W; k++) a += R.hist[k][j]; out.push([R.hist[i + W - 1][0], a / W]); } return out; };
         const smR = R.sc === "std" ? sm(1) : R.hist.map((q) => [q[0], q[1]]), smF = R.sc === "std" ? sm(2) : R.hist.map((q) => [q[0], q[2]]);
-        dCap.innerHTML = `識別器給這一輪 32 個真、32 個假資料的平均機率${R.sc === "std" ? "（每 20 輪再平均）" : ""}：<span style="color:var(--pos)">━ 真資料</span>　<span style="color:var(--hot)">━ 假資料</span>　虛線 0.5`;
-        nn.lineChart(dSvg, { W: 360, H: 190, xMax: R.total, yMin: 0, yMax: 1, xLabel: "輪", marker: viewR, refY: 0.5,
+        dCap.innerHTML = t(R.sc === "std" ? "dCapStd" : "dCapG10");
+        nn.lineChart(dSvg, { W: 360, H: 190, xMax: R.total, yMin: 0, yMax: 1, xLabel: t("dAxis"), marker: viewR, refY: 0.5,
           series: [{ pts: smR, color: "var(--pos)" }, { pts: smF, color: "var(--hot)" }] });
       }
       function drawCov() {
         cSvg.replaceChildren();
-        const names = ["右", "右上", "上", "左上", "左", "左下", "下", "右下"], W = 360, base = 136, top = 18, bw = 30, gap = (W - 30 - 8 * bw) / 7;
+        const names = ["dirR", "dirUR", "dirU", "dirUL", "dirL", "dirDL", "dirD", "dirDR"].map((k) => t(k)), W = 360, base = 136, top = 18, bw = 30, gap = (W - 30 - 8 * bw) / 7;
         const mx = Math.max(250, ...V.cnt);
         cSvg.append(s("line", { x1: 15, x2: W - 15, y1: base, y2: base, stroke: "var(--line-strong)" }));
         cSvg.append(s("line", { x1: 15, x2: W - 15, y1: base - (125 / mx) * (base - top), y2: base - (125 / mx) * (base - top), stroke: "var(--ink)", "stroke-dasharray": "4 3", "stroke-opacity": 0.6 }));
@@ -193,18 +193,18 @@
           cSvg.append(s("text", { x: x + bw / 2, y: base - hAll - 4, "text-anchor": "middle", "font-size": 10, class: "t-mono", text: n }));
           cSvg.append(s("text", { x: x + bw / 2, y: base + 14, "text-anchor": "middle", "font-size": 10.5, class: "t-muted", text: names[k] }));
         });
-        cSvg.append(s("text", { x: W / 2, y: 166, "text-anchor": "middle", "font-size": 10.5, class: "t-muted", text: "方向（從原點看）" }));
+        cSvg.append(s("text", { x: W / 2, y: 166, "text-anchor": "middle", "font-size": 10.5, class: "t-muted", text: t("covAxis") }));
       }
       const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
       function drawStatus() {
         const R = cur(), ar = avg(V.dReal), af = avg(V.dFake), nearAll = V.near.reduce((a, b) => a + b, 0) / 10, cover = V.cnt.filter((n) => n >= 50).length;
-        const head = `第 ${viewR} 輪${R.loop.running ? "（訓練中）" : ""}：識別器給真資料平均 ${fmt(ar, 2)}、給假資料平均 ${fmt(af, 2)}；生成點 ${fmt(nearAll, 1)}% 落在真資料附近，8 個方向中 ${cover} 個方向有 5% 以上的點`;
+        const head = t(R.loop.running ? "statusHeadRun" : "statusHead", { r: viewR, ar: fmt(ar, 2), af: fmt(af, 2), near: fmt(nearAll, 1), cover });
         let kd = "info", tail = "";
-        if (viewR === 0) tail = R.loop.running ? "。剛開始：假資料和真資料的分布完全不同" : "。還沒訓練：假資料和真資料的分布完全不同。按「▶ 開始訓練」連續訓練，或按「前進 1 輪」一輪一輪看";
-        else if (R.sc === "g10" && cover <= 3) { kd = "bad"; tail = "。モード崩壊：點都擠在少數方向"; }
-        else if (R.sc === "g10" && viewR === R.total && nearAll < 30) { kd = "warn"; tail = "。大多數生成點不在真資料附近：生成器一直追著識別器當下的判斷跑"; }
-        else if (viewR === R.total && Math.abs(ar - 0.5) < 0.15 && Math.abs(af - 0.5) < 0.15 && cover >= 7) { kd = "ok"; tail = "。識別器幾乎分不出真假，假資料也鋪滿了各個方向"; }
-        else if (viewR === R.total && R.sc === "std") { kd = "warn"; tail = "。還有方向沒鋪到：GAN 訓練的結果和初始值有關，可以換一組初始值比較"; }
+        if (viewR === 0) tail = t(R.loop.running ? "tailStartRun" : "tailStart");
+        else if (R.sc === "g10" && cover <= 3) { kd = "bad"; tail = t("tailCollapse"); }
+        else if (R.sc === "g10" && viewR === R.total && nearAll < 30) { kd = "warn"; tail = t("tailChase"); }
+        else if (viewR === R.total && Math.abs(ar - 0.5) < 0.15 && Math.abs(af - 0.5) < 0.15 && cover >= 7) { kd = "ok"; tail = t("tailOk"); }
+        else if (viewR === R.total && R.sc === "std") { kd = "warn"; tail = t("tailMiss"); }
         status.className = "status status--" + kd; status.textContent = head + tail;
       }
       function drawCalc() {
@@ -213,13 +213,13 @@
         const row = (kk, b) => `<span class="calc-row"><span class="k">${kk}</span> ${b}</span>`;
         const pr = (a) => "(" + a.map((v) => fmt(v, 2)).join(", ") + ")";
         calc.innerHTML =
-          row("生成器", `雜訊 z = ${pr(z)} → 生成器 → 假資料 x = <span class="hl">${pr(x)}</span>`) +
-          row("識別器", `D(x) = ${fmt(q, 3)}（認為它是真資料的機率）`) +
-          row("生成器的損失", `−ln D(x) = −ln ${fmt(q, 3)} = <span class="hl">${fmt(-Math.log(Math.max(1e-12, q)), 3)}</span>；往 ∂ln D/∂x = ${pr(gr)} 的方向移動，損失會變小（粗箭頭）`) +
-          row("識別器的損失", `−[ ln D(真) 的平均 + ln(1 − D(假)) 的平均 ]（畫面上各 300 個）= <span class="hl">${fmt(lossD, 3)}</span>；完全分不出來（都是 0.5）時 = 2 ln 2 ≈ 1.386`);
+          row(t("calcGK"), t("calcG", { z: pr(z), x: pr(x) })) +
+          row(t("calcDK"), t("calcD", { q: fmt(q, 3) })) +
+          row(t("calcGLossK"), t("calcGLoss", { q: fmt(q, 3), v: fmt(-Math.log(Math.max(1e-12, q)), 3), g: pr(gr) })) +
+          row(t("calcDLossK"), t("calcDLoss", { v: fmt(lossD, 3) }));
       }
 
-      note.innerHTML = `原始論文把生成器的目標寫成「讓 ln(1 − D(G(z))) 變小」，但訓練初期識別器很容易判對，這一項的梯度幾乎是 0，所以實務上（也包括這一頁）改用「讓 −ln D(G(z)) 變小」。生成器從來沒看過真資料，它學到的一切都是透過識別器的梯度傳過來的。這一頁是平面上的點；把兩個網路換成<a href="#conv">畳み込み</a>層來生成影像的是 <span class="jp">DCGAN</span>；給定一張圖、生成對應的另一張圖（例如線稿 → 上色），有成對的訓練資料時用 <span class="jp">Pix2Pix</span>，沒有成對資料（例如馬 ↔ 斑馬照片）時用 <span class="jp">CycleGAN</span>（轉過去再轉回來要變回原圖）。GAN 也用在音声生成、文章生成等。另一種不必兩個網路互相較勁、訓練比較穩定的生成方法，見 <a href="#diffusion">Diffusion Model</a>。`;
+      note.innerHTML = t("note");
 
       ctx.onTheme(() => drawPlane());
       ensure();

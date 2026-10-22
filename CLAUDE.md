@@ -57,6 +57,6 @@
 | 神經網路怎麼學習（下） ✓ | ~~act (activation)~~、~~loss~~、~~overfit (overfitting)~~、~~dropout~~、~~norm~~ |
 | 卷積與影像 ✓ | ~~conv (convolution)~~、~~pool (pooling)~~、~~dilated~~、~~dwsep~~、~~resnet~~ |
 | 序列與語言 ✓ | ~~rnn (rnn-vanishing)~~、~~lstm~~、~~teacher~~、~~seq2seq~~、~~selfatt (self-attention)~~、~~mha~~、~~posenc~~、~~transformer~~、~~w2v~~ |
-| 生成模型＋強化學習 | ae、vae、gan、diffusion、bandit、qlearn |
+| 生成模型＋強化學習 ✓ | ~~ae~~、~~vae~~、~~gan~~、~~diffusion~~、~~bandit~~、~~qlearn~~ |
 
 目前進度以 `node tools/check-i18n.mjs` 最後一行為準。`assets/nn.js` 裡若有顯示用文字，處理到用它的分區時一併拆出（放 `_core.js`）。

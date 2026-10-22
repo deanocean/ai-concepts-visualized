@@ -204,6 +204,21 @@
 | 生成對抗網路 | 敵対的生成ネットワーク | generative adversarial network |
 | 生成器／判別器 | 生成器／識別器 | generator / discriminator |
 | 擴散模型 | 拡散モデル | diffusion model |
+| 還原誤差 | 復元誤差 | reconstruction error |
+| 堆疊自編碼器 | 積層オートエンコーダ | stacked autoencoder |
+| 預訓練 | 事前学習 | pre-training |
+| 標準常態分布 | 標準正規分布 | standard normal distribution |
+| 潛在空間 | 潜在空間 | latent space |
+| 潛在變數 | 潜在変数 | latent variable |
+| 重新參數化技巧 | Reparameterization Trick | reparameterization trick |
+| β-VAE | β-VAE | beta-VAE |
+| VQ-VAE | VQ-VAE | vector quantized VAE |
+| 碼本 | コードブック | codebook |
+| InfoVAE | InfoVAE | information maximizing VAE |
+| 模式崩潰 | モード崩壊 | mode collapse |
+| DCGAN | DCGAN | deep convolutional GAN |
+| 雜訊 | ノイズ | noise |
+| DDPM | DDPM | denoising diffusion probabilistic models |
 
 ## 強化學習
 
@@ -213,3 +228,17 @@
 | 策略 | 方策 | policy |
 | 探索／利用 | 探索／活用 | exploration / exploitation |
 | Q 學習 | Q 学習 | Q-learning |
+| 多臂拉霸問題 | 多腕バンディット問題 | multi-armed bandit problem |
+| 拉霸演算法 | バンディットアルゴリズム | bandit algorithm |
+| ε-greedy 策略 | ε-greedy 方策 | ε-greedy policy |
+| UCB 策略 | UCB 方策 | UCB policy |
+| 獎勵 | 報酬 | reward |
+| 代理人 | エージェント | agent |
+| 回合 | エピソード | episode |
+| 行動價值函數 | 行動価値関数 | action-value function |
+| 狀態價值函數 | 状態価値関数 | state-value function |
+| SARSA | SARSA | SARSA |
+| 馬可夫決策過程 | マルコフ決定過程 | Markov decision process |
+| 折扣率 | 割引率 | discount rate |
+| 策略梯度法 | 方策勾配法 | policy gradient method |
+| Actor-Critic | Actor-Critic | actor-critic |
