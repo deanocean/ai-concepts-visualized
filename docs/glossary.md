@@ -85,6 +85,25 @@
 | 正則化 | 正則化 | regularization |
 | 正規化層 | 正規化層 | normalization layer |
 | 批次正規化 | バッチ正規化 | batch normalization |
+| 全域最佳解 | 大域最適解 | global optimum |
+| 局部最佳解 | 局所最適解 | local optimum |
+| 鞍點 | 鞍点 | saddle point |
+| 批次學習 | バッチ学習 | batch learning |
+| 小批次學習 | ミニバッチ学習 | mini-batch learning |
+| 批次大小 | バッチサイズ | batch size |
+| 迭代 | イテレーション | iteration |
+| 線上學習 | オンライン学習 | online learning |
+| 均方誤差 | 平均二乗誤差 | mean squared error |
+| 超參數 | ハイパーパラメータ | hyperparameter |
+| 網格搜尋 | グリッドサーチ | grid search |
+| 隨機搜尋 | ランダムサーチ | random search |
+| 沒有免費午餐定理 | ノーフリーランチ定理 | no free lunch theorem |
+| 有效學習率 | 実効学習率 | effective learning rate |
+| 信用分配問題 | 信用割当問題 | credit assignment problem |
+| 正向傳播 | 順伝播 | forward propagation |
+| 偏微分 | 偏微分 | partial derivative |
+| 偏置 | バイアス | bias |
+| 梯度消失問題 | 勾配消失問題 | vanishing gradient problem |
 
 ## 卷積與影像
 
