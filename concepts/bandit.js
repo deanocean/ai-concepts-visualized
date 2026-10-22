@@ -4,7 +4,8 @@
    - ε-greedy：抽亂數 u，u < ε 就隨機挑一台（探索），否則挑估計值最高的（利用；同分隨機）
    - UCB：挑「估計值 + c×√(ln t ÷ n)」最大的一台（t＝已經玩的次數、n＝這台玩過的次數），c = 1
    估計值＝這台到目前的平均獎勵（增量更新 Q ← Q + (r − Q) ÷ n）。
-   ① 一步步看：單一輪，種子 1〜20。② 比較：6 種方策各玩 200 輪（種子 1000〜1199），取平均。 */
+   ① 一步步看：單一輪，種子 1〜20。② 比較：6 種方策各玩 200 輪（種子 1000〜1199），取平均。
+   文字在 locales/zh/bandit.js、locales/ja/bandit.js。 */
 (function () {
   const P = [0.2, 0.4, 0.55, 0.3, 0.75], NAMES = ["A", "B", "C", "D", "E"], K = 5, T = 2000, BEST = 4, C = 1;
   const EPS = [0, 0.01, 0.1, 0.3, 1];
@@ -58,11 +59,10 @@
   }
 
   Atlas.define("bandit", {
-    lead: `<p>面前有 5 台拉霸機，各自的中獎機率不同，但你不知道哪台最好，只能邊玩邊猜。一直玩「目前看起來最好的」叫<span class="jp">活用</span>（利用，<span class="en">exploitation</span>），可能錯過真正更好的；一直換著試叫<span class="jp">探索</span>（<span class="en">exploration</span>），又會浪費次數在差的機台上。這種「邊試邊選」的問題叫<span class="jp">多腕バンディット問題</span>（多臂拉霸問題，<span class="en">multi-armed bandit</span>），解法統稱<span class="jp">バンディットアルゴリズム</span>。</p>`,
-    closing: `只利用（ε = 0）的話，一開始運氣不好就可能一路困在較差的機台；ε 越大越不會困住，但永遠有 ε 的次數花在亂試上。<span class="jp">UCB 方策</span>改成替「試得少、還沒把握」的機台加分，試夠了加分自然變小，探索就跟著減少：在這組機台上，它平均拿到的總獎勵最多，200 輪裡也沒有一輪困住。`,
 
     mount(bench, ctx) {
       const { h, s, fmt, ui, nn } = Atlas;
+      const { t } = ctx;
       let mode = "one", strat = "eps", eps = 0.1, seed = 1, run = null, timer = null, cmp = null;
 
       bench.append(h("style", { text: `
@@ -75,20 +75,20 @@
       ` }));
 
       /* ---------- 控制 ---------- */
-      const modeSeg = ui.seg({ label: "看什麼", value: mode, options: [{ value: "one", label: "① 一步步看一輪" }, { value: "cmp", label: "② 比較 6 種方策（各 200 輪平均）" }], onChange: (v) => { mode = v; layout(); } });
-      const stratSeg = ui.seg({ label: "方策", value: strat, options: [{ value: "eps", label: "ε-greedy 方策" }, { value: "ucb", label: "UCB 方策" }], onChange: (v) => { strat = v; reset(); } });
-      const epsSeg = ui.seg({ label: "ε（亂試的機率）", value: eps, options: EPS.map((e) => ({ value: e, label: e === 0 ? "0（只利用）" : e === 1 ? "1（只亂試）" : String(e) })), onChange: (v) => { eps = v; reset(); } });
-      const seedBtn = ui.btn("換一組亂數", () => { seed = (seed % 20) + 1; reset(); }, { sm: true });
-      const playBtn = ui.btn("▶ 自動玩", () => (timer ? pause() : play()), { primary: true });
-      const oneBtn = ui.btn("拉 1 次", () => { pause(); run.step(); render(); });
-      const ffBtn = ui.btn("⏭ 快轉到 2000 次", () => { pause(); while (run.step()); render(); });
-      const resetBtn = ui.btn("重設", () => reset());
-      const cmpBtn = ui.btn("▶ 開始比較", () => startCmp(), { primary: true });
+      const modeSeg = ui.seg({ label: t("modeLabel"), value: mode, options: [{ value: "one", label: t("modeOne") }, { value: "cmp", label: t("modeCmp") }], onChange: (v) => { mode = v; layout(); } });
+      const stratSeg = ui.seg({ label: t("stratLabel"), value: strat, options: [{ value: "eps", label: t("stratEps") }, { value: "ucb", label: t("stratUcb") }], onChange: (v) => { strat = v; reset(); } });
+      const epsSeg = ui.seg({ label: t("epsLabel"), value: eps, options: EPS.map((e) => ({ value: e, label: e === 0 ? t("eps0") : e === 1 ? t("eps1") : String(e) })), onChange: (v) => { eps = v; reset(); } });
+      const seedBtn = ui.btn(t("btnSeed"), () => { seed = (seed % 20) + 1; reset(); }, { sm: true });
+      const playBtn = ui.btn(t("btnPlay"), () => (timer ? pause() : play()), { primary: true });
+      const oneBtn = ui.btn(t("btnOne"), () => { pause(); run.step(); render(); });
+      const ffBtn = ui.btn(t("btnFf"), () => { pause(); while (run.step()); render(); });
+      const resetBtn = ui.btn(t("btnReset"), () => reset());
+      const cmpBtn = ui.btn(t("btnCmp"), () => startCmp(), { primary: true });
 
       const status = h("div", { class: "status" }), calc = h("div", { class: "calc" }), note = h("p", { class: "note" });
-      const mSvg = s("svg", { viewBox: "0 0 366 262", role: "img", "aria-label": "5 台拉霸機的估計值" });
-      const cSvg = s("svg", { role: "img", "aria-label": "選到最佳機台 E 的比例" });
-      const cmpSvg = s("svg", { role: "img", "aria-label": "6 種方策選到最佳機台的比例（平均）" });
+      const mSvg = s("svg", { viewBox: "0 0 366 262", role: "img", "aria-label": t("mAria") });
+      const cSvg = s("svg", { role: "img", "aria-label": t("curveAria") });
+      const cmpSvg = s("svg", { role: "img", "aria-label": t("cmpAria") });
       const cmpTbl = h("div", { class: "scroll-x" });
       const keyOne = h("div", { class: "bd-key" });
       const cmpKey = h("div", { class: "bd-key" });
@@ -99,11 +99,11 @@
         status,
         h("div", { class: "bd-fig" }, mSvg, keyOne),
         calc,
-        h("div", { class: "bd-fig" }, h("div", { class: "bd-cap" }, "到目前為止，選到最好的機台 E 的比例（虛線＝隨機亂選的 20%）"), cSvg));
+        h("div", { class: "bd-fig" }, h("div", { class: "bd-cap" }, t("capCurve")), cSvg));
       const cmpBox = h("div", { style: { display: "flex", flexDirection: "column", gap: "14px" } },
         h("div", { class: "bench__row" }, cmpBtn),
         h("div", { class: "status" }),
-        h("div", { class: "bd-fig" }, h("div", { class: "bd-cap" }, "200 輪平均：到第 t 次為止，選到最好的機台 E 的比例"), cmpSvg, cmpKey),
+        h("div", { class: "bd-fig" }, h("div", { class: "bd-cap" }, t("capCmp")), cmpSvg, cmpKey),
         cmpTbl);
       const cmpStatus = cmpBox.children[1];
       bench.append(h("div", { class: "bench__row" }, modeSeg.el), oneBox, cmpBox, note);
@@ -123,7 +123,7 @@
       function reset() { pause(); run = makeRun(strat, strat === "eps" ? eps : 0, seed); epsSeg.el.hidden = strat !== "eps"; render(); }
       function refreshBtns() {
         if (!run) return;
-        playBtn.textContent = timer ? "❚❚ 暫停" : run.t >= T ? "✓ 玩完 2000 次" : "▶ 自動玩";
+        playBtn.textContent = t(timer ? "btnPause" : run.t >= T ? "btnPlayDone" : "btnPlay");
         playBtn.disabled = oneBtn.disabled = ffBtn.disabled = run.t >= T;
       }
 
@@ -150,16 +150,14 @@
           svg.append(s("rect", { x: cx - 18, y: 4, width: 36, height: 24, rx: 6, fill: sel ? "var(--hot)" : "var(--panel-2)", stroke: sel ? "var(--hot)" : "var(--line-strong)", "stroke-width": sel ? 2 : 1 }));
           svg.append(s("text", { x: cx, y: 21, "text-anchor": "middle", "font-size": 15, "font-weight": 700, class: "t-mono", fill: sel ? "var(--panel)" : "var(--ink)", text: NAMES[i] }));
           svg.append(s("text", { x: cx, y: base + 17, "text-anchor": "middle", "font-size": 13.5, "font-weight": 600, class: "t-mono", text: tried ? fmt(R.q[i], 2) : "—" }));
-          svg.append(s("text", { x: cx, y: base + 34, "text-anchor": "middle", "font-size": 12, class: "t-muted", text: `玩 ${R.n[i]} 次` }));
-          if (sel) svg.append(s("text", { x: cx, y: base + 52, "text-anchor": "middle", "font-size": 12.5, "font-weight": 700, fill: L.rew ? "var(--ok)" : "var(--muted)", text: L.rew ? "中獎 +1" : "沒中" }));
+          svg.append(s("text", { x: cx, y: base + 34, "text-anchor": "middle", "font-size": 12, class: "t-muted", text: t("played", { n: R.n[i] }) }));
+          if (sel) svg.append(s("text", { x: cx, y: base + 52, "text-anchor": "middle", "font-size": 12.5, "font-weight": 700, fill: L.rew ? "var(--ok)" : "var(--muted)", text: L.rew ? t("win") : t("lose") }));
         }
-        keyOne.innerHTML = `<span><i style="background:var(--accent)"></i>估計值＝這台到目前的平均獎勵</span>` +
-          (strat === "ucb" ? `<span><i style="background:var(--hot-soft);border:1px dashed var(--hot)"></i>UCB 加分（下一次用）</span>` : "") +
-          `<span><span class="bd-sw" style="border-top-style:dashed;border-top-width:2px;color:var(--ink)"></span>真正的中獎機率（代理人不知道）</span>`;
+        keyOne.innerHTML = t("keyEst") + (strat === "ucb" ? t("keyUcb") : "") + t("keyTrue");
       }
 
       function drawCurve() {
-        nn.lineChart(cSvg, { W: 360, H: 170, xMax: T, yMin: 0, yMax: 1, xLabel: "次數", refY: 0.2,
+        nn.lineChart(cSvg, { W: 360, H: 170, xMax: T, yMin: 0, yMax: 1, xLabel: t("axis"), refY: 0.2,
           series: [{ pts: run.curve.slice(1), color: "var(--hot)" }] });
       }
 
@@ -167,52 +165,49 @@
       function render() {
         refreshBtns(); drawMachines(); drawCurve();
         const R = run, L = R.last, share = R.t ? R.bestN / R.t : 0;
-        const head = R.t ? `第 ${R.t} 次${timer ? "（自動玩中）" : ""}：總獎勵 ${R.tot}（平均每次 ${fmt(R.tot / R.t, 3)}）；最好的機台 E 被選了 ${R.bestN} 次（${fmt(share * 100, 1)}%）` : "";
+        const head = R.t ? t(timer ? "headRun" : "head", { t: R.t, tot: R.tot, avg: fmt(R.tot / R.t, 3), n: R.bestN, pct: fmt(share * 100, 1) }) : "";
         let kd = "info", text;
-        if (!R.t) text = "還沒開始：每台都還沒玩過，估計值都是空的。按「拉 1 次」一次一次看，或按「▶ 自動玩」連續玩 2000 次（約 8 秒）";
-        else if (R.t < K) text = head + "。先把每台各拉 1 次，才有估計值可以比";
+        if (!R.t) text = t("statusIdle");
+        else if (R.t < K) text = head + t("tailInit");
         else if (R.t < T) {
           const most = R.n.indexOf(Math.max(...R.n));
-          text = head + `。目前玩最多的是 ${NAMES[most]}`;
+          text = head + t("tailMost", { m: NAMES[most] });
         } else {
           const most = R.n.indexOf(Math.max(...R.n));
-          if (strat === "eps" && eps === 1) { kd = "bad"; text = head + "。完全亂選：每台都約 20%，學到的估計值完全沒被用上"; }
-          else if (share < 0.5 && most !== BEST) { kd = "bad"; text = head + `。困住了：大部分時間在玩 ${NAMES[most]}（真正機率 ${fmt(P[most], 2)}）` + (R.q[BEST] < R.q[most] ? `；E 的估計值只有 ${fmt(R.q[BEST], 2)}（玩了 ${R.n[BEST]} 次），比 ${NAMES[most]} 的 ${fmt(R.q[most], 2)} 低，所以很少再回去試` : ""); }
-          else if (share < 0.5) { kd = "warn"; text = head + "。E 玩得最多，但還不到一半"; }
-          else if (share >= 0.8) { kd = "ok"; text = head + "。大部分時間都在玩最好的 E"; }
-          else { kd = "warn"; text = head + (strat === "eps" ? `。有找到 E，但 ε = ${eps} 的亂試一直持續到最後` : "。有找到 E，但前面花了不少次數在探索"); }
+          if (strat === "eps" && eps === 1) { kd = "bad"; text = head + t("tailRandom"); }
+          else if (share < 0.5 && most !== BEST) { kd = "bad"; text = head + t(R.q[BEST] < R.q[most] ? "tailStuckWhy" : "tailStuck", { m: NAMES[most], p: fmt(P[most], 2), qe: fmt(R.q[BEST], 2), ne: R.n[BEST], qm: fmt(R.q[most], 2) }); }
+          else if (share < 0.5) { kd = "warn"; text = head + t("tailHalf"); }
+          else if (share >= 0.8) { kd = "ok"; text = head + t("tailGood"); }
+          else { kd = "warn"; text = head + (strat === "eps" ? t("tailEpsLeft", { eps }) : t("tailUcbLeft")); }
         }
         status.className = "status status--" + kd; status.textContent = text;
 
         if (!L) {
-          calc.innerHTML = row("規則", strat === "ucb"
-            ? "先每台各拉 1 次；之後每次選「估計值 + c × √(ln t ÷ n)」最大的一台（t＝已經玩的次數、n＝這台玩過的次數，c = 1）"
-            : "先每台各拉 1 次；之後每次抽一個 0〜1 的亂數 u：u < ε 就隨機挑一台（探索），否則挑估計值最高的一台（利用）") +
-            row("估計值", "這台到目前為止的平均獎勵；中獎得 1、沒中得 0");
+          calc.innerHTML = row(t("ruleK"), t(strat === "ucb" ? "ruleUcb" : "ruleEps")) + row(t("estK"), t("est"));
           return;
         }
         const a = L.a, name = NAMES[a];
         let why;
-        if (L.why === "init") why = row(`第 ${L.t} 次`, `先每台各拉 1 次 → 拉 <span class="hl">${name}</span>`);
-        else if (L.why === "ucb") why = row(`第 ${L.t} 次：分數 = 估計值 + 1 × √(ln ${L.t - 1} ÷ n)`, NAMES.map((nm, i) => `${i === a ? "<span class=\"hl\">" : ""}${nm} ${fmt(L.qBefore[i], 2)}+${fmt(L.bonus[i], 2)}=${fmt(L.score[i], 2)}${i === a ? "</span>" : ""}`).join("　")) +
-          row("", `分數最高 → 拉 <span class="hl">${name}</span>${L.qBefore[a] < Math.max(...L.qBefore) ? "（估計值不是最高，是加分把它推上來的：它試得比較少）" : ""}`);
-        else if (L.why === "explore") why = row(`第 ${L.t} 次`, `亂數 u = ${fmt(L.u, 3)} &lt; ε = ${eps} → 探索：隨機挑到 <span class="hl">${name}</span>`);
-        else why = row(`第 ${L.t} 次`, `亂數 u = ${fmt(L.u, 3)} ≥ ε = ${eps} → 利用：挑估計值最高的 <span class="hl">${name}</span>（${fmt(L.qBefore[a], 2)}${L.ties > 1 ? `，${L.ties} 台同分隨機挑` : ""}）`);
+        if (L.why === "init") why = row(t("stepK", { t: L.t }), t("whyInit", { name }));
+        else if (L.why === "ucb") why = row(t("ucbK", { t: L.t, t1: L.t - 1 }), NAMES.map((nm, i) => `${i === a ? "<span class=\"hl\">" : ""}${nm} ${fmt(L.qBefore[i], 2)}+${fmt(L.bonus[i], 2)}=${fmt(L.score[i], 2)}${i === a ? "</span>" : ""}`).join("　")) +
+          row("", t(L.qBefore[a] < Math.max(...L.qBefore) ? "ucbPickBonus" : "ucbPick", { name }));
+        else if (L.why === "explore") why = row(t("stepK", { t: L.t }), t("whyExplore", { u: fmt(L.u, 3), eps, name }));
+        else why = row(t("stepK", { t: L.t }), t(L.ties > 1 ? "whyExploitTie" : "whyExploit", { u: fmt(L.u, 3), eps, name, q: fmt(L.qBefore[a], 2), ties: L.ties }));
         const n = L.nBefore[a] + 1;
         const upd = L.nBefore[a] === 0
-          ? row("更新估計值", `${name} 第 1 次玩，獎勵 ${L.rew} → 估計值 = <span class="hl">${fmt(L.qAfter, 2)}</span>`)
-          : row("更新估計值（平均）", `${name}：${fmt(L.qBefore[a], 3)} + (${L.rew} − ${fmt(L.qBefore[a], 3)}) ÷ ${n} = <span class="hl">${fmt(L.qAfter, 3)}</span>`);
+          ? row(t("updK"), t("updFirst", { name, r: L.rew, q: fmt(L.qAfter, 2) }))
+          : row(t("updAvgK"), t("updAvg", { name, q0: fmt(L.qBefore[a], 3), r: L.rew, n, q1: fmt(L.qAfter, 3) }));
         calc.innerHTML = why + upd;
       }
 
       /* ---------- ② 比較 ---------- */
       const SER = [
-        { key: "e0", strat: "eps", eps: 0, label: "ε = 0（只利用）", color: "var(--neg)" },
+        { key: "e0", strat: "eps", eps: 0, label: t("serE0"), color: "var(--neg)" },
         { key: "e001", strat: "eps", eps: 0.01, label: "ε = 0.01", color: "var(--hot)", dash: "6 4" },
         { key: "e01", strat: "eps", eps: 0.1, label: "ε = 0.1", color: "var(--pos)" },
         { key: "e03", strat: "eps", eps: 0.3, label: "ε = 0.3", color: "var(--accent)", dash: "2 3" },
-        { key: "e1", strat: "eps", eps: 1, label: "ε = 1（只亂試）", color: "var(--muted)", dash: "8 3 2 3" },
-        { key: "ucb", strat: "ucb", eps: 0, label: "UCB 方策", color: "var(--ok)" },
+        { key: "e1", strat: "eps", eps: 1, label: t("serE1"), color: "var(--muted)", dash: "8 3 2 3" },
+        { key: "ucb", strat: "ucb", eps: 0, label: t("serUcb"), color: "var(--ok)" },
       ];
       const RUNS = 200, EVERY = 20;
       function startCmp() {
@@ -231,30 +226,30 @@
       }
       function renderCmp() {
         cmpBtn.disabled = !!(cmp && !cmp.loop.finished);
-        cmpBtn.textContent = !cmp ? "▶ 開始比較" : cmp.loop.finished ? "✓ 比較完成" : "計算中…";
+        cmpBtn.textContent = t(!cmp ? "btnCmp" : cmp.loop.finished ? "btnCmpDone" : "btnCmpRun");
         cmpKey.innerHTML = SER.map((sr) => `<span><span class="bd-sw" style="color:${sr.color};border-top-style:${sr.dash ? "dashed" : "solid"}"></span>${sr.label}</span>`).join("");
         if (!cmp) {
           cmpStatus.className = "status status--info";
-          cmpStatus.textContent = "還沒開始：按「▶ 開始比較」，6 種方策各玩 200 輪（每輪 2000 次，種子固定），把結果平均（約 1〜2 秒）";
-          nn.lineChart(cmpSvg, { W: 360, H: 210, xMax: T, yMin: 0, yMax: 1, xLabel: "次數", refY: 0.2, series: [] });
+          cmpStatus.textContent = t("cmpIdle");
+          nn.lineChart(cmpSvg, { W: 360, H: 210, xMax: T, yMin: 0, yMax: 1, xLabel: t("axis"), refY: 0.2, series: [] });
           cmpTbl.replaceChildren();
           return;
         }
-        nn.lineChart(cmpSvg, { W: 360, H: 210, xMax: T, yMin: 0, yMax: 1, xLabel: "次數", refY: 0.2,
+        nn.lineChart(cmpSvg, { W: 360, H: 210, xMax: T, yMin: 0, yMax: 1, xLabel: t("axis"), refY: 0.2,
           series: SER.map((sr, i) => ({ pts: cmp.res[i].done ? cmp.res[i].best.map((v, k) => [(k + 1) * EVERY, v / cmp.res[i].done]) : [], color: sr.color, dash: sr.dash })) });
         const done = cmp.loop.finished;
         const rows = SER.map((sr, i) => { const r = cmp.res[i], d = r.done || 1; return { sr, avg: r.tot / d, last: r.last200 / d / 200, stuck: r.stuck, done: r.done }; });
         const bestAvg = Math.max(...rows.map((r) => r.avg));
         cmpTbl.replaceChildren(h("table", { class: "tbl" },
-          h("thead", null, h("tr", null, h("th", { class: "l" }, "方策"), h("th", null, "平均總獎勵（2000 次）"), h("th", null, "最後 200 次選 E 的比例"), h("th", null, "困住的輪數（E 不到一半）"))),
+          h("thead", null, h("tr", null, h("th", { class: "l" }, t("thStrat")), h("th", null, t("thTot")), h("th", null, t("thLast")), h("th", null, t("thStuck")))),
           h("tbody", null, ...rows.map((r) => h("tr", { class: done && r.avg === bestAvg ? "is-sel" : "" },
             h("td", { class: "l" }, h("span", { class: "bd-sw", style: { color: r.sr.color, borderTopStyle: r.sr.dash ? "dashed" : "solid" } }), r.sr.label),
             h("td", null, r.done ? fmt(r.avg, 1) : "…"), h("td", null, r.done ? fmt(r.last * 100, 1) + "%" : "…"), h("td", null, r.done ? `${r.stuck} / ${r.done}` : "…")))),
-          h("tfoot", null, h("tr", null, h("td", { class: "l" }, "一直玩 E 的期望值"), h("td", null, fmt(T * P[BEST], 1)), h("td", null, "100%"), h("td", null, "")))));
-        if (!done) { cmpStatus.className = "status status--info"; cmpStatus.textContent = `計算中…（${cmp.loop.done} / ${SER.length * RUNS} 輪）`; return; }
+          h("tfoot", null, h("tr", null, h("td", { class: "l" }, t("tfootE")), h("td", null, fmt(T * P[BEST], 1)), h("td", null, "100%"), h("td", null, "")))));
+        if (!done) { cmpStatus.className = "status status--info"; cmpStatus.textContent = t("cmpRun", { d: cmp.loop.done, n: SER.length * RUNS }); return; }
         const best = rows.find((r) => r.avg === bestAvg), e0 = rows[0], e1 = rows[4];
         cmpStatus.className = "status status--ok";
-        cmpStatus.textContent = `${best.sr.label} 平均總獎勵最高（${fmt(best.avg, 1)}）。ε = 0 有 ${e0.stuck} 輪困在較差的機台；ε = 1 完全亂選，只有 ${fmt(e1.avg, 1)}`;
+        cmpStatus.textContent = t("cmpDone", { label: best.sr.label, avg: fmt(best.avg, 1), stuck: e0.stuck, e1: fmt(e1.avg, 1) });
       }
 
       function layout() {
@@ -263,7 +258,7 @@
         if (mode === "cmp") renderCmp(); else render();
       }
 
-      note.innerHTML = `中獎機率是設計好的示範值。「先每台各拉 1 次」是常見的起手式，這一頁兩種方策都這樣做，比較才公平。UCB 是 <span class="en">Upper Confidence Bound</span>（信賴上界）的縮寫：加分項 √(ln t ÷ n) 在一台玩得越少（n 小）時越大，所以也叫「對不確定的機台保持樂觀」；標準的 UCB1 用 c = √2，這一頁用 c = 1（這組機台上表現較好），c 越大越愛探索。拉霸機只有「選哪一台」這一個決定，選完也不會改變狀況；如果每次行動還會改變接下來的處境（例如走迷宮），就要用到 <a href="#qlearn">Q 学習</a> 這類方法。ε-greedy 方策也是 Q 学習在訓練時挑行動的標準做法。實際應用例如：網站要顯示哪個廣告、推薦哪篇文章，邊看點擊率邊調整。`;
+      note.innerHTML = t("note");
 
       ctx.onTheme(() => { if (mode === "one") render(); else renderCmp(); });
       reset(); layout();

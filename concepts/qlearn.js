@@ -4,13 +4,13 @@
    兩個代理人同時學：ε-greedy（ε = 0.1）挑行動，學習率 α = 0.2，割引率 γ = 1 或 0.9，每組 800 回合。
    Q 学習：目標 = r + γ × max Q(s′, ·)；SARSA：目標 = r + γ × Q(s′, a′)（a′＝下一步實際要走的行動）。
    兩者亂數各自獨立（種子 1〜5）。原本 500 回合時，SARSA 偶爾還沒收斂（照最高 Q 值走會繞圈），改成 800 回合；
-   實測 5 種子 × 2 種 γ：Q 学習的路線都是 11 步緊貼懸崖，SARSA 都是不經過懸崖正上方那一列的遠路，訓練中掉下懸崖的次數 SARSA 都少得多。 */
+   實測 5 種子 × 2 種 γ：Q 学習的路線都是 11 步緊貼懸崖，SARSA 都是不經過懸崖正上方那一列的遠路，訓練中掉下懸崖的次數 SARSA 都少得多。
+   文字在 locales/zh/qlearn.js、locales/ja/qlearn.js。 */
 (function () {
   const ROWS = 4, COLS = 10, S0 = [3, 0], GOAL = [3, 9], EPS = 0.1, ALPHA = 0.2, EPISODES = 800;
-  const DIRS = [[-1, 0], [0, 1], [1, 0], [0, -1]], DN = ["往上", "往右", "往下", "往左"], ARW = ["↑", "→", "↓", "←"];
+  const DIRS = [[-1, 0], [0, 1], [1, 0], [0, -1]], ARW = ["↑", "→", "↓", "←"];
   const isCliff = (r, c) => r === ROWS - 1 && c > 0 && c < COLS - 1;
   const isGoal = (r, c) => r === GOAL[0] && c === GOAL[1];
-  const cellName = (r, c) => `從上數第 ${r + 1} 格、從左數第 ${c + 1} 格`;
 
   function makeAgent(method, gamma, seed) {
     const rnd = Atlas.nn.rng(seed); // 兩個代理人各自一份亂數（同一個種子）
@@ -59,11 +59,12 @@
   }
 
   Atlas.define("qlearn", {
-    lead: `<p>機器人要從起點走到終點，每走一步扣 1 分，掉下懸崖扣 100 分並回到起點，但沒有人告訴它該怎麼走，只能自己試。它替每一格的每一個行動記一個數字 Q(s, a)：「在這格這樣走，之後總共還會拿到多少獎勵」，這叫<span class="jp">行動価値関数</span>（行動價值函數，<span class="en">action-value function</span>）。每走一步，就用「拿到的獎勵 + 下一格的價值」修正剛才那一格的 Q 值。<span class="jp">Q 学習</span>（<span class="en">Q-learning</span>）和 <span class="jp">SARSA</span> 都這樣學，差別只在「下一格的價值」怎麼算。</p>`,
-    closing: `兩者都用 ε-greedy 邊走邊亂試，也都用「獎勵 + 下一格的價值」更新。Q 学習取下一格<b>最好的</b>行動的值，等於假設之後都走最佳路線，所以學出貼著懸崖的最短路，但訓練時一亂走就掉下去；SARSA 取下一步<b>實際要走的</b>行動（包含亂走）的值，把「在懸崖邊偶爾會失足」也算進 Q 值，所以學出繞遠一點的安全路，訓練期間掉下去的次數也少得多。`,
 
     mount(bench, ctx) {
       const { h, s, fmt, ui, nn } = Atlas;
+      const { t } = ctx;
+      const DN = ["dirUp", "dirRight", "dirDown", "dirLeft"].map((k) => t(k));
+      const cellName = (r, c) => t("cellName", { r: r + 1, c: c + 1 });
       let gamma = 1, seed = 1, sel = [2, 4], agents = null, loop = null;
 
       bench.append(h("style", { text: `
@@ -78,27 +79,27 @@
         .ql-sw { display: inline-block; width: 18px; height: 0; border-top: 3px solid; vertical-align: 3px; margin-right: 4px; }
       ` }));
 
-      const gSeg = ui.seg({ label: "割引率 γ", value: gamma, options: [{ value: 1, label: "1（不打折）" }, { value: 0.9, label: "0.9" }], onChange: (v) => { gamma = v; reset(); } });
-      const seedBtn = ui.btn("換一組初始值", () => { seed = (seed % 5) + 1; reset(); }, { sm: true });
-      const runBtn = ui.btn("▶ 開始訓練", () => { if (loop.running) loop.pause(); else loop.start(); render(); }, { primary: true });
-      const stepBtn = ui.btn("前進 1 步", () => { loop.pause(); agents.forEach((A) => A.step()); render(); });
-      const epBtn = ui.btn("跑完 1 回合", () => { loop.pause(); agents.forEach((A) => A.episode()); render(); });
-      const ffBtn = ui.btn("⏭ 快轉到結束", () => { loop.fastForward(); render(); });
+      const gSeg = ui.seg({ label: t("gLabel"), value: gamma, options: [{ value: 1, label: t("g1") }, { value: 0.9, label: "0.9" }], onChange: (v) => { gamma = v; reset(); } });
+      const seedBtn = ui.btn(t("btnSeed"), () => { seed = (seed % 5) + 1; reset(); }, { sm: true });
+      const runBtn = ui.btn(t("btnRun"), () => { if (loop.running) loop.pause(); else loop.start(); render(); }, { primary: true });
+      const stepBtn = ui.btn(t("btnStep"), () => { loop.pause(); agents.forEach((A) => A.step()); render(); });
+      const epBtn = ui.btn(t("btnEp"), () => { loop.pause(); agents.forEach((A) => A.episode()); render(); });
+      const ffBtn = ui.btn(t("btnFf"), () => { loop.fastForward(); render(); });
 
       const status = h("div", { class: "status" }), calc = h("div", { class: "calc" }), cellCalc = h("div", { class: "calc" }), note = h("p", { class: "note" });
-      const svgs = [s("svg", { viewBox: "0 0 380 190", role: "img", "aria-label": "Q 学習的 Q 值與路線" }), s("svg", { viewBox: "0 0 380 190", role: "img", "aria-label": "SARSA 的 Q 值與路線" })];
+      const svgs = [s("svg", { viewBox: "0 0 380 190", role: "img", "aria-label": t("qAria") }), s("svg", { viewBox: "0 0 380 190", role: "img", "aria-label": t("sAria") })];
       const caps = [h("div", { class: "ql-cap" }), h("div", { class: "ql-cap" })];
-      const chart = s("svg", { role: "img", "aria-label": "每回合拿到的總獎勵" });
+      const chart = s("svg", { role: "img", "aria-label": t("chartAria") });
       bench.append(
         h("div", { class: "bench__row" }, gSeg.el, seedBtn),
         h("div", { class: "bench__row" }, runBtn, stepBtn, epBtn, ffBtn),
         status,
         h("div", { class: "ql-row" }, h("div", { class: "ql-fig" }, caps[0], svgs[0]), h("div", { class: "ql-fig" }, caps[1], svgs[1])),
-        h("div", { class: "ql-key", html: `<span><i style="background:var(--neg-soft);border:1px solid var(--neg)"></i>懸崖</span><span>箭頭＝目前 Q 值最高的行動</span><span>格中數字＝最高的 Q 值（底色越藍越負）</span><span><span class="ql-sw" style="color:var(--hot)"></span>只走最高 Q 值時的路線</span><span>● 代理人現在的位置</span>` }),
+        h("div", { class: "ql-key", html: t("key") }),
         calc,
-        h("div", { class: "field" }, h("span", { class: "field__label" }, "點任一格，比較兩者在那一格的 4 個 Q 值"), cellCalc),
+        h("div", { class: "field" }, h("span", { class: "field__label" }, t("cellLabel")), cellCalc),
         h("div", { class: "ql-fig", style: { flex: "none", maxWidth: "520px", marginInline: "auto", width: "100%" } },
-          h("div", { class: "ql-cap", style: { fontWeight: 400, fontSize: "12.5px", color: "var(--muted)" }, html: `每回合拿到的總獎勵（最近 20 回合平均，−120 以下畫在底線）：<span style="color:var(--hot)">━ Q 学習</span>　<span style="color:var(--pos)">━ SARSA</span>` }), chart),
+          h("div", { class: "ql-cap", style: { fontWeight: 400, fontSize: "12.5px", color: "var(--muted)" }, html: t("capChart") }), chart),
         note);
 
       function reset() {
@@ -124,23 +125,23 @@
           const g = s("g", { class: "ql-cell" });
           if (isCliff(r, c)) g.append(s("rect", { x, y, width: CS, height: CS, fill: "var(--neg-soft)", stroke: "var(--neg)", "stroke-width": 0.8 }));
           else {
-            const t = Math.min(1, maxQ[i] / lo), fill = Atlas.rgbStr(Atlas.mix(panel, acc, t * 0.75));
+            const tv = Math.min(1, maxQ[i] / lo), fill = Atlas.rgbStr(Atlas.mix(panel, acc, tv * 0.75));
             g.append(s("rect", { x, y, width: CS, height: CS, fill, stroke: "var(--line-strong)", "stroke-width": 0.8 }));
-            const dark = t > 0.55, ink = dark ? "var(--panel)" : "var(--ink)";
-            if (isGoal(r, c)) txt.append(s("text", { x: x + CS / 2, y: y + 21, "text-anchor": "middle", "font-size": 13, "font-weight": 700, fill: ink, text: "終點" }));
+            const dark = tv > 0.55, ink = dark ? "var(--panel)" : "var(--ink)";
+            if (isGoal(r, c)) txt.append(s("text", { x: x + CS / 2, y: y + 21, "text-anchor": "middle", "font-size": 13, "font-weight": 700, fill: ink, text: t("goal") }));
             else {
               const visited = Q[i].some((v) => v !== 0);
               if (visited) {
                 txt.append(s("text", { x: x + CS / 2, y: y + 15, "text-anchor": "middle", "font-size": 14, "font-weight": 700, fill: ink, text: ARW[Q[i].indexOf(maxQ[i])] }));
                 txt.append(s("text", { x: x + CS / 2, y: y + 28, "text-anchor": "middle", "font-size": 9, class: "t-mono", fill: ink, text: fmt(maxQ[i], Math.abs(maxQ[i]) < 10 ? 1 : 0) }));
               }
-              if (r === S0[0] && c === S0[1]) txt.append(s("text", { x: x + 3, y: y + 10, "font-size": 8.5, "font-weight": 700, fill: ink, text: "起點" }));
+              if (r === S0[0] && c === S0[1]) txt.append(s("text", { x: x + 3, y: y + 10, "font-size": 8.5, "font-weight": 700, fill: ink, text: t("start") }));
             }
           }
           g.addEventListener("click", () => { sel = [r, c]; render(); });
           svg.append(g);
         }
-        svg.append(s("text", { x: X0 + CS * 5, y: Y0 + 3 * CS + 21, "text-anchor": "middle", "font-size": 13, "font-weight": 700, fill: "var(--neg)", text: "懸崖（−100，回到起點）", style: "pointer-events:none" }));
+        svg.append(s("text", { x: X0 + CS * 5, y: Y0 + 3 * CS + 21, "text-anchor": "middle", "font-size": 13, "font-weight": 700, fill: "var(--neg)", text: t("cliff"), style: "pointer-events:none" }));
         // 選中的格子
         svg.append(s("rect", { x: X0 + sel[1] * CS + 1, y: Y0 + sel[0] * CS + 1, width: CS - 2, height: CS - 2, fill: "none", stroke: "var(--ink)", "stroke-width": 2, "stroke-dasharray": "3 2", style: "pointer-events:none" }));
         // 路線
@@ -151,15 +152,15 @@
         const [pr, pc] = A.pos;
         svg.append(s("circle", { cx: X0 + pc * CS + CS / 2, cy: Y0 + pr * CS + CS / 2, r: 7, fill: "var(--hot)", stroke: "var(--panel)", "stroke-width": 2, style: "pointer-events:none" }));
         // 欄號
-        svg.append(s("text", { x: X0, y: 16, "font-size": 11, class: "t-muted", text: `第 ${A.ep} 回合結束　掉下懸崖 ${A.falls} 次${A.steps ? `　這回合已走 ${A.steps} 步` : ""}` }));
+        svg.append(s("text", { x: X0, y: 16, "font-size": 11, class: "t-muted", text: t(A.steps ? "gridHeadSteps" : "gridHead", { ep: A.ep, f: A.falls, s: A.steps }) }));
         A.gp = gp;
-        caps[k].innerHTML = k === 0 ? `Q 学習 <small>目標 = r + γ × max Q(s′, ·)</small>` : `SARSA <small>目標 = r + γ × Q(s′, a′)</small>`;
+        caps[k].innerHTML = t(k === 0 ? "capQ" : "capS");
       }
 
       const avgLast = (arr, n) => { const a = arr.slice(-n); return a.reduce((x, y) => x + y, 0) / (a.length || 1); };
       function drawChart() {
         const sm = (rets) => { const out = []; for (let i = 0; i < rets.length; i++) { const a = rets.slice(Math.max(0, i - 19), i + 1); out.push([i + 1, a.reduce((x, y) => x + y, 0) / a.length]); } return out; };
-        nn.lineChart(chart, { W: 420, H: 190, xMax: EPISODES, yMin: -120, yMax: 0, xLabel: "回合", series: [{ pts: sm(agents[0].rets), color: "var(--hot)" }, { pts: sm(agents[1].rets), color: "var(--pos)" }] });
+        nn.lineChart(chart, { W: 420, H: 190, xMax: EPISODES, yMin: -120, yMax: 0, xLabel: t("chartAxis"), series: [{ pts: sm(agents[0].rets), color: "var(--hot)" }, { pts: sm(agents[1].rets), color: "var(--pos)" }] });
       }
       /** 路線離懸崖多遠：中間各欄（第 2〜9 欄）中，路線最靠近懸崖的那一列 */
       function pathInfo(gp) {
@@ -173,17 +174,17 @@
       function render() {
         drawGrid(0); drawGrid(1); drawChart();
         const e = doneEps(), [Aq, As] = agents, run = loop.running;
-        runBtn.textContent = run ? "❚❚ 暫停" : loop.finished || e >= EPISODES ? "✓ 訓練完成" : e || Aq.steps ? "▶ 繼續訓練" : "▶ 開始訓練";
+        runBtn.textContent = t(run ? "btnPause" : loop.finished || e >= EPISODES ? "btnDone" : e || Aq.steps ? "btnResume" : "btnRun");
         runBtn.disabled = stepBtn.disabled = epBtn.disabled = ffBtn.disabled = e >= EPISODES;
         let kd = "info", txt;
-        if (!e && !Aq.steps && !Aq.ep) txt = "還沒訓練：Q 值全是 0，兩個代理人都只能亂走。按「前進 1 步」看每一步怎麼更新，或按「▶ 開始訓練」連續跑 800 回合（約 6 秒）";
+        if (!e && !Aq.steps && !Aq.ep) txt = t("statusIdle");
         else {
           const pq = pathInfo(Aq.gp), ps = pathInfo(As.gp);
-          const desc = (gp, pi) => !gp.ok ? (gp.why === "cliff" ? "照最高 Q 值走會掉下懸崖（還沒學好）" : "照最高 Q 值走會繞圈、到不了終點（還沒學好）") : `${pi.len} 步${pi.edge ? "、一路緊貼懸崖" : `、最高走到從上數第 ${pi.minRow + 1} 格`}`;
-          txt = `${run ? "訓練中，" : ""}已完成 ${e} 回合：Q 学習的路線 ${desc(Aq.gp, pq)}；SARSA 的路線 ${desc(As.gp, ps)}`;
+          const desc = (gp, pi) => !gp.ok ? t(gp.why === "cliff" ? "descCliff" : "descLoop") : t(pi.edge ? "descEdge" : "descUp", { len: pi.len, row: pi.minRow + 1 });
+          txt = t(run ? "statusRun" : "status", { e, q: desc(Aq.gp, pq), s: desc(As.gp, ps) });
           if (e >= EPISODES) {
             const rq = avgLast(Aq.rets, 50), rs = avgLast(As.rets, 50);
-            txt += `。訓練中掉下懸崖：Q 学習 ${Aq.falls} 次、SARSA ${As.falls} 次；最後 50 回合平均每回合獎勵 Q 学習 ${fmt(rq, 1)}、SARSA ${fmt(rs, 1)}`;
+            txt += t("statusEnd", { fq: Aq.falls, fs: As.falls, rq: fmt(rq, 1), rs: fmt(rs, 1) });
             kd = Aq.gp.ok && As.gp.ok ? "ok" : "warn";
           }
         }
@@ -192,28 +193,28 @@
         // 最後一次更新
         const one = (A, nm) => {
           const L = A.last;
-          if (!L) return row(nm, "還沒走過");
-          const head = `在${cellName(L.r, L.c)}${DN[L.a]}${L.aRand ? "（ε 亂走）" : ""} → ${L.fell ? "掉下懸崖，獎勵 −100，回到起點" : L.done ? "到達終點，獎勵 −1" : `獎勵 −1，到${cellName(L.nr, L.nc)}`}`;
+          if (!L) return row(nm, t("notYet"));
+          const head = t(L.aRand ? "moveRand" : "move", { cell: cellName(L.r, L.c), dir: DN[L.a], res: L.fell ? t("resFell") : L.done ? t("resGoal") : t("resMove", { cell: cellName(L.nr, L.nc) }) });
           let tgt;
-          if (L.done) tgt = `終點之後沒有獎勵，目標 = r = <span class="hl">${fmt(L.target, 2)}</span>`;
-          else if (A.method === "q") tgt = `目標 = r + γ × max Q(s′, ·) = ${L.rew} + ${gamma} × max(${L.q2.map((v) => fmt(v, 2)).join(", ")}) = ${L.rew} + ${gamma} × ${fmt(L.next, 2)} = <span class="hl">${fmt(L.target, 2)}</span>`;
-          else tgt = `下一步實際要${DN[L.a2]}${L.a2Rand ? "（這是 ε 亂走抽到的）" : ""}：目標 = r + γ × Q(s′, ${DN[L.a2]}) = ${L.rew} + ${gamma} × ${fmt(L.next, 2)} = <span class="hl">${fmt(L.target, 2)}</span>`;
+          if (L.done) tgt = t("tgtDone", { v: fmt(L.target, 2) });
+          else if (A.method === "q") tgt = t("tgtQ", { r: L.rew, g: gamma, qs: L.q2.map((v) => fmt(v, 2)).join(", "), n: fmt(L.next, 2), v: fmt(L.target, 2) });
+          else tgt = t(L.a2Rand ? "tgtSRand" : "tgtS", { dir: DN[L.a2], r: L.rew, g: gamma, n: fmt(L.next, 2), v: fmt(L.target, 2) });
           return row(nm, head) + row("", tgt) + row("", `Q(s, ${DN[L.a]}) ← ${fmt(L.old, 2)} + ${ALPHA} × (${fmt(L.target, 2)} − ${fmt(L.old, 2)}) = <span class="hl">${fmt(L.nw, 2)}</span>`);
         };
-        calc.innerHTML = row("最後一步的更新", "（學習率 α = 0.2、ε = 0.1）") + one(Aq, "Q 学習") + one(As, "SARSA");
+        calc.innerHTML = row(t("lastK"), t("lastV")) + one(Aq, t("nameQ")) + one(As, "SARSA");
 
         const [r, c] = sel, i = r * COLS + c;
-        if (isCliff(r, c)) cellCalc.innerHTML = row(cellName(r, c), "這是懸崖，代理人不會停在這裡，沒有 Q 值");
-        else if (isGoal(r, c)) cellCalc.innerHTML = row(cellName(r, c), "這是終點，到了就結束，沒有 Q 值");
+        if (isCliff(r, c)) cellCalc.innerHTML = row(cellName(r, c), t("cliffCell"));
+        else if (isGoal(r, c)) cellCalc.innerHTML = row(cellName(r, c), t("goalCell"));
         else cellCalc.innerHTML = row(cellName(r, c), "") + agents.map((A, k) => {
           const q = A.Q[i], m = Math.max(...q);
-          return row(k ? "SARSA" : "Q 学習", q.map((v, a) => `${v === m && q.some((x) => x !== 0) ? "<span class=\"hl\">" : ""}${DN[a]} ${fmt(v, 2)}${v === m && q.some((x) => x !== 0) ? "</span>" : ""}`).join("　"));
+          return row(k ? "SARSA" : t("nameQ"), q.map((v, a) => `${v === m && q.some((x) => x !== 0) ? "<span class=\"hl\">" : ""}${DN[a]} ${fmt(v, 2)}${v === m && q.some((x) => x !== 0) ? "</span>" : ""}`).join("　"));
         }).join("") + (r === ROWS - 2 && c > 0 && c < COLS - 1 && e >= 100 && As.Q[i][1] < Aq.Q[i][1] - 1
-          ? row("比一比", `這格在懸崖正上方：SARSA 的「往右」${fmt(As.Q[i][1], 2)} 比 Q 学習的 ${fmt(Aq.Q[i][1], 2)} 低，因為 SARSA 把「接下來有 10% 會亂走、可能往下掉」也算進去了`)
+          ? row(t("cmpK"), t("cmp", { s: fmt(As.Q[i][1], 2), q: fmt(Aq.Q[i][1], 2) }))
           : "");
       }
 
-      note.innerHTML = `把世界寫成「狀態 → 行動 → 獎勵與下一個狀態」，而且下一步只取決於現在的狀態與行動，這種設定叫<span class="jp">マルコフ決定過程</span>（馬可夫決策過程，<span class="en">Markov decision process, MDP</span>）。<span class="jp">割引率</span>（折扣率，<span class="en">discount rate</span>）γ 讓越遠的獎勵算得越少：γ = 1 時起點的 Q 值約等於「到終點還要扣幾分」，γ = 0.9 時 11 步的路是 −1 − 0.9 − 0.81 − … ≈ −6.9。只看格子本身好不好（不分行動）的叫<span class="jp">状態価値関数</span>（狀態價值函數）。Q 学習和 SARSA 都是先學「價值」再照價值選行動；另一類是直接學「怎麼選行動」的機率，叫<span class="jp">方策勾配法</span>（策略梯度法，代表為 <span class="jp">REINFORCE</span>），兩者結合的是 <span class="jp">Actor-Critic</span>。格子一多就沒辦法用表格存 Q 值，改用神經網路估計 Q 值的就是 DQN（シラバス §29）。挑行動用的 ε-greedy 見 <a href="#bandit">バンディット</a>；SARSA 的名稱來自更新用到的五個量 s, a, r, s′, a′。`;
+      note.innerHTML = t("note");
 
       reset();
       ctx.onTheme(() => { drawGrid(0); drawGrid(1); });

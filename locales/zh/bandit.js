@@ -1,0 +1,91 @@
+/* 多臂拉霸與 ε-greedy 策略（concepts/bandit.js）的中文文字
+   - {name} 是程式帶入的值；HTML 只用在 lead、closing、note、key*、calc 用的項目（why*、ucb*、upd*）這類會以 HTML 顯示的項目 */
+Atlas.strings("zh", "bandit", {
+  lead: `<p>面前有 5 台拉霸機，各自的中獎機率不同，但你不知道哪台最好，只能邊玩邊猜。一直玩「目前看起來最好的」叫<span class="term">利用</span>（<span class="en">exploitation</span>），可能錯過真正更好的；一直換著試叫<span class="term">探索</span>（<span class="en">exploration</span>），又會浪費次數在差的機台上。這種「邊試邊選」的問題叫<span class="term">多臂拉霸問題</span>（<span class="en">multi-armed bandit problem</span>），解法統稱<span class="term">拉霸演算法</span>（<span class="en">bandit algorithm</span>）。</p>`,
+  closing: `只利用（ε = 0）的話，一開始運氣不好就可能一路困在較差的機台；ε 越大越不會困住，但永遠有 ε 的次數花在亂試上。<span class="term">UCB 策略</span>（<span class="en">UCB policy</span>）改成替「試得少、還沒把握」的機台加分，試夠了加分自然變小，探索就跟著減少：在這組機台上，它平均拿到的總獎勵最多，200 輪裡也沒有一輪困住。`,
+
+  /* 控制項 */
+  modeLabel: "看什麼",
+  modeOne: "① 一步步看一輪",
+  modeCmp: "② 比較 6 種策略（各 200 輪平均）",
+  stratLabel: "策略",
+  stratEps: "ε-greedy 策略",
+  stratUcb: "UCB 策略",
+  epsLabel: "ε（亂試的機率）",
+  eps0: "0（只利用）",
+  eps1: "1（只亂試）",
+  btnSeed: "換一組亂數",
+  btnPlay: "▶ 自動玩",
+  btnPause: "❚❚ 暫停",
+  btnPlayDone: "✓ 玩完 2000 次",
+  btnOne: "拉 1 次",
+  btnFf: "⏭ 快轉到 2000 次",
+  btnReset: "重設",
+  btnCmp: "▶ 開始比較",
+  btnCmpRun: "計算中…",
+  btnCmpDone: "✓ 比較完成",
+
+  /* 圖（螢幕報讀用） */
+  mAria: "5 台拉霸機的估計值",
+  curveAria: "選到最佳機台 E 的比例",
+  cmpAria: "6 種策略選到最佳機台的比例（平均）",
+
+  /* 圖說 */
+  capCurve: "到目前為止，選到最好的機台 E 的比例（虛線＝隨機亂選的 20%）",
+  capCmp: "200 輪平均：到第 t 次為止，選到最好的機台 E 的比例",
+  played: "玩 {n} 次",
+  win: "中獎 +1",
+  lose: "沒中",
+  keyEst: `<span><i style="background:var(--accent)"></i>估計值＝這台到目前的平均獎勵</span>`,
+  keyUcb: `<span><i style="background:var(--hot-soft);border:1px dashed var(--hot)"></i>UCB 加分（下一次用）</span>`,
+  keyTrue: `<span><span class="bd-sw" style="border-top-style:dashed;border-top-width:2px;color:var(--ink)"></span>真正的中獎機率（代理人不知道）</span>`,
+  axis: "次數",
+
+  /* 狀態列 */
+  head: "第 {t} 次：總獎勵 {tot}（平均每次 {avg}）；最好的機台 E 被選了 {n} 次（{pct}%）",
+  headRun: "第 {t} 次（自動玩中）：總獎勵 {tot}（平均每次 {avg}）；最好的機台 E 被選了 {n} 次（{pct}%）",
+  statusIdle: "還沒開始：每台都還沒玩過，估計值都是空的。按「拉 1 次」一次一次看，或按「▶ 自動玩」連續玩 2000 次（約 8 秒）",
+  tailInit: "。先把每台各拉 1 次，才有估計值可以比",
+  tailMost: "。目前玩最多的是 {m}",
+  tailRandom: "。完全亂選：每台都約 20%，學到的估計值完全沒被用上",
+  tailStuck: "。困住了：大部分時間在玩 {m}（真正機率 {p}）",
+  tailStuckWhy: "。困住了：大部分時間在玩 {m}（真正機率 {p}）；E 的估計值只有 {qe}（玩了 {ne} 次），比 {m} 的 {qm} 低，所以很少再回去試",
+  tailHalf: "。E 玩得最多，但還不到一半",
+  tailGood: "。大部分時間都在玩最好的 E",
+  tailEpsLeft: "。有找到 E，但 ε = {eps} 的亂試一直持續到最後",
+  tailUcbLeft: "。有找到 E，但前面花了不少次數在探索",
+
+  /* 算式 */
+  ruleK: "規則",
+  ruleUcb: "先每台各拉 1 次；之後每次選「估計值 + c × √(ln t ÷ n)」最大的一台（t＝已經玩的次數、n＝這台玩過的次數，c = 1）",
+  ruleEps: "先每台各拉 1 次；之後每次抽一個 0〜1 的亂數 u：u < ε 就隨機挑一台（探索），否則挑估計值最高的一台（利用）",
+  estK: "估計值",
+  est: "這台到目前為止的平均獎勵；中獎得 1、沒中得 0",
+  stepK: "第 {t} 次",
+  whyInit: `先每台各拉 1 次 → 拉 <span class="hl">{name}</span>`,
+  ucbK: "第 {t} 次：分數 = 估計值 + 1 × √(ln {t1} ÷ n)",
+  ucbPick: `分數最高 → 拉 <span class="hl">{name}</span>`,
+  ucbPickBonus: `分數最高 → 拉 <span class="hl">{name}</span>（估計值不是最高，是加分把它推上來的：它試得比較少）`,
+  whyExplore: `亂數 u = {u} &lt; ε = {eps} → 探索：隨機挑到 <span class="hl">{name}</span>`,
+  whyExploit: `亂數 u = {u} ≥ ε = {eps} → 利用：挑估計值最高的 <span class="hl">{name}</span>（{q}）`,
+  whyExploitTie: `亂數 u = {u} ≥ ε = {eps} → 利用：挑估計值最高的 <span class="hl">{name}</span>（{q}，{ties} 台同分隨機挑）`,
+  updK: "更新估計值",
+  updFirst: `{name} 第 1 次玩，獎勵 {r} → 估計值 = <span class="hl">{q}</span>`,
+  updAvgK: "更新估計值（平均）",
+  updAvg: `{name}：{q0} + ({r} − {q0}) ÷ {n} = <span class="hl">{q1}</span>`,
+
+  /* ② 比較 */
+  serE0: "ε = 0（只利用）",
+  serE1: "ε = 1（只亂試）",
+  serUcb: "UCB 策略",
+  thStrat: "策略",
+  thTot: "平均總獎勵（2000 次）",
+  thLast: "最後 200 次選 E 的比例",
+  thStuck: "困住的輪數（E 不到一半）",
+  tfootE: "一直玩 E 的期望值",
+  cmpIdle: "還沒開始：按「▶ 開始比較」，6 種策略各玩 200 輪（每輪 2000 次，種子固定），把結果平均（約 1〜2 秒）",
+  cmpRun: "計算中…（{d} / {n} 輪）",
+  cmpDone: "{label} 平均總獎勵最高（{avg}）。ε = 0 有 {stuck} 輪困在較差的機台；ε = 1 完全亂選，只有 {e1}",
+
+  note: `中獎機率是設計好的示範值。「先每台各拉 1 次」是常見的起手式，這一頁兩種策略都這樣做，比較才公平。UCB 是 <span class="en">Upper Confidence Bound</span>（信賴上界）的縮寫：加分項 √(ln t ÷ n) 在一台玩得越少（n 小）時越大，所以也叫「對不確定的機台保持樂觀」；標準的 UCB1 用 c = √2，這一頁用 c = 1（這組機台上表現較好），c 越大越愛探索。拉霸機只有「選哪一台」這一個決定，選完也不會改變狀況；如果每次行動還會改變接下來的處境（例如走迷宮），就要用到 <a href="#qlearn">Q 學習</a> 這類方法。ε-greedy 策略也是 Q 學習在訓練時挑行動的標準做法。實際應用例如：網站要顯示哪個廣告、推薦哪篇文章，邊看點擊率邊調整。`,
+});

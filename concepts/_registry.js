@@ -62,13 +62,13 @@ Atlas.registry(
     { id: "w2v", area: "seq", sec: "§27", en: "Word Embedding (word2vec)", file: "concepts/w2v.js", deps: NN, i18n: true },
 
     /* 生成模型 */
-    { id: "ae", area: "gen", sec: "§24", en: "Autoencoder", file: "concepts/ae.js", deps: NN },
-    { id: "vae", area: "gen", sec: "§24", en: "Variational Autoencoder", file: "concepts/vae.js", deps: NN },
-    { id: "gan", area: "gen", sec: "§30", en: "Generative Adversarial Network", file: "concepts/gan.js", deps: NN },
-    { id: "diffusion", area: "gen", sec: "§30", en: "Diffusion Model", added: true, file: "concepts/diffusion.js", deps: NN },
+    { id: "ae", area: "gen", sec: "§24", en: "Autoencoder", file: "concepts/ae.js", deps: NN, i18n: true },
+    { id: "vae", area: "gen", sec: "§24", en: "Variational Autoencoder", file: "concepts/vae.js", deps: NN, i18n: true },
+    { id: "gan", area: "gen", sec: "§30", en: "Generative Adversarial Network", file: "concepts/gan.js", deps: NN, i18n: true },
+    { id: "diffusion", area: "gen", sec: "§30", en: "Diffusion Model", added: true, file: "concepts/diffusion.js", deps: NN, i18n: true },
 
     /* 強化學習 */
-    { id: "bandit", area: "rl", sec: "§9", en: "Bandit, ε-greedy & UCB", added: true, file: "concepts/bandit.js", deps: NN },
-    { id: "qlearn", area: "rl", sec: "§9", en: "Q-learning & SARSA", file: "concepts/qlearn.js", deps: NN },
+    { id: "bandit", area: "rl", sec: "§9", en: "Bandit, ε-greedy & UCB", added: true, file: "concepts/bandit.js", deps: NN, i18n: true },
+    { id: "qlearn", area: "rl", sec: "§9", en: "Q-learning & SARSA", file: "concepts/qlearn.js", deps: NN, i18n: true },
   ]
 );
