@@ -33,7 +33,7 @@ Atlas.strings("ja", "qlearn", {
   cellLabel: "マスをクリックすると、そのマスの 4 つの Q 値を 2 つの手法で比べられる",
   capChart: `エピソードごとの報酬の合計（直近 20 エピソードの平均。−120 以下は下端に描く）：<span style="color:var(--hot)">━ Q 学習</span>　<span style="color:var(--pos)">━ SARSA</span>`,
   goal: "ゴール",
-  start: "スタート",
+  start: "出発",
   cliff: "崖（−100、スタートに戻る）",
   gridHead: "{ep} エピソード終了　崖から落ちた回数 {f}",
   gridHeadSteps: "{ep} エピソード終了　崖から落ちた回数 {f}　このエピソードで {s} 歩",
